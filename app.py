@@ -4,469 +4,159 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from datetime import datetime
+import time
 
-# Bulut sunucusunda pytz kütüphanesi yüklenirken hata oluşma ihtimaline karşı güvenli import yapısı
+# Sayfa Yapısı
+st.set_page_config(page_title="Broker Sinyal Radarı", layout="wide")
+
+# Zaman dilimi için korumalı kütüphane kontrolü
 try:
     import pytz
     has_pytz = True
 except ImportError:
     has_pytz = False
 
-# Sayfa Yapısı
-st.set_page_config(page_title="Broker Sinyal Radarı", layout="wide")
-
-# Otomatik Yenileme (Her 15 saniyede bir arka planda tetiklenir)
+# Otomatik Yenileme (Sayfayı her 10 saniyede bir komple tetikler ve veriyi günceller)
 try:
     from streamlit_autorefresh import st_autorefresh
-    st_autorefresh(interval=15000, key="datarefresh")
+    st_autorefresh(interval=10000, key="global_data_refresh")
 except:
     pass
 
 # CSS Düzenlemeleri
 st.markdown("""
     <style>
-    .stApp {
-        background-color: #1e1e24 !important;
-        color: #f3f4f6 !important;
-    }
-    label {
-        color: #f3f4f6 !important;
-        font-weight: bold !important;
-    }
-    .stAlert { 
-        border-radius: 16px !important; 
-        padding: 20px !important; 
-    }
+    .stApp { background-color: #1e1e24 !important; color: #f3f4f6 !important; }
+    label { color: #f3f4f6 !important; font-weight: bold !important; }
     .main-signal {
-        font-size: 32px !important;
-        font-weight: 900 !important;
-        text-align: center;
-        padding: 30px;
-        border-radius: 16px;
-        margin-bottom: 25px;
-        letter-spacing: 1px;
+        font-size: 32px !important; font-weight: 900 !important; text-align: center;
+        padding: 30px; border-radius: 16px; margin-bottom: 25px; letter-spacing: 1px;
     }
     .instruction-card {
-        background: #25252b;
-        padding: 20px;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        text-align: center;
-        border: 1px solid #32323a;
+        background: #25252b; padding: 20px; border-radius: 12px;
+        text-align: center; border: 1px solid #32323a;
     }
-    .price-style {
-        font-size: 28px !important;
-        font-weight: bold !important;
-        margin-top: 10px;
-    }
-    .comment-card {
-        background: #25252b;
-        padding: 22px;
-        border-radius: 12px;
-        border-left: 5px solid #60a5fa;
-        margin-top: 20px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-    .guide-card {
-        background: #25252b;
-        padding: 20px;
-        border-radius: 12px;
-        border: 1px dashed #4b5563;
-        margin-top: 15px;
-    }
-    .terminal-card {
-        background: #25252b;
-        padding: 15px;
-        border-radius: 10px;
-        border: 1px solid #32323a;
-        text-align: center;
-    }
-    .left-market-box {
-        background: #25252b;
-        padding: 15px 20px;
-        border-radius: 12px;
-        border: 1px solid #3e3e4a;
-        text-align: center;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-    }
-    .news-box {
-        background: #25252b;
-        padding: 12px 15px;
-        border-radius: 8px;
-        border: 1px solid #4b5563;
-    }
-    .news-item {
-        font-size: 13px !important;
-        padding: 5px 0;
-        border-bottom: 1px solid #32323a;
-        color: #e5e7eb !important;
-    }
-    .news-item:last-child {
-        border-bottom: none;
-    }
-    .time-status-box {
-        background: #25252b;
-        padding: 12px;
-        border-radius: 12px;
-        border: 1px solid #3e3e4a;
-        text-align: center;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-    }
+    .price-style { font-size: 28px !important; font-weight: bold !important; margin-top: 10px; }
+    .terminal-card { background: #25252b; padding: 15px; border-radius: 10px; border: 1px solid #32323a; text-align: center; }
     
-    [data-testid="stMetricLabel"] {
-        color: #e5e7eb !important;
-        font-size: 14px !important;
-        font-weight: bold !important;
+    /* Endeks Kutuları Tasarımı */
+    .market-box {
+        background: #25252b; padding: 12px 15px; border-radius: 12px;
+        text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.2); border: 1px solid #3e3e4a;
     }
-    [data-testid="stMetricValue"] {
-        color: #38bdf8 !important;
-        font-size: 24px !important;
-        font-weight: 800 !important;
-    }
-    .stTable, table {
-        color: #f3f4f6 !important;
-        background-color: #25252b !important;
-    }
-    th {
-        background-color: #32323a !important;
-        color: #60a5fa !important;
-        font-weight: bold !important;
-        font-size: 14px !important;
-    }
-    td {
-        color: #f3f4f6 !important;
-        font-size: 13px !important;
+    .time-box {
+        background: #10b981; padding: 12px; border-radius: 12px;
+        text-align: center; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 🔥 ÜST KATMAN: 3'LÜ YERLEŞİM (SOL - ORTA - SAĞ) 🔥 ---
 st.markdown("# 🦅 Broker Sinyal Radarı")
-st.write("Borsa bilgisine ihtiyacınız yok. Yapay zeka sizin yerinize hesaplar ve net işlem talimatı verir.")
 
-top_col1, top_col2, top_col3 = st.columns([2, 1.5, 2.5])
+# --- 🔥 ÜST KATMAN: CANLI AKAN SAAT & 3 ENDEKS (BIST100 - BIST30 - VİOP) 🔥 ---
+grid_col1, grid_col2, grid_col3, grid_col4 = st.columns([1.5, 2, 2, 2])
 
-# 📍 1. SOL SÜTUN (BIST Endeksleri)
-with top_col1:
-    idx_col, vop_col = st.columns(2)
-    
-    with idx_col:
-        try:
-            xu100 = yf.Ticker("XU100.IS")
-            hist_100 = xu100.history(period="2d")
-            if not hist_100.empty and len(hist_100) >= 2:
-                idx_guncel = hist_100['Close'].iloc[-1]
-                idx_onceki = hist_100['Close'].iloc[-2]
-                idx_degisim = ((idx_guncel - idx_onceki) / idx_onceki) * 100
-                idx_renk = "#4ade80" if idx_degisim >= 0 else "#f87171"
-                st.markdown(f"""
-                <div class="left-market-box" style="border-top: 4px solid {idx_renk};">
-                    <span style="color:#a3a3a3; font-weight:bold; font-size:12px;">🏛️ BIST 100</span><br>
-                    <span style="font-size:22px; font-weight:900; color:{idx_renk};">{idx_guncel:,.2f}</span><br>
-                    <span style="font-size:14px; font-weight:bold; color:{idx_renk};">{idx_degisim:+.2f}%</span>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown('<div class="left-market-box">🏛️ BIST 100<br><span style="font-size:20px; font-weight:bold; color:#4ade80;">14,754.20</span></div>', unsafe_allow_html=True)
-        except:
-            st.markdown('<div class="left-market-box">🏛️ BIST 100<br><span style="font-size:20px; font-weight:bold; color:#4ade80;">14,754.20</span></div>', unsafe_allow_html=True)
-
-    with vop_col:
-        try:
-            xu030 = yf.Ticker("XU030.IS")
-            hist_030 = xu030.history(period="2d")
-            if not hist_030.empty and len(hist_030) >= 2:
-                vop_guncel = hist_030['Close'].iloc[-1]
-                vop_onceki = hist_030['Close'].iloc[-2]
-                vop_degisim = ((vop_guncel - vop_onceki) / vop_onceki) * 100
-                vop_renk = "#4ade80" if vop_degisim >= 0 else "#f87171"
-                st.markdown(f"""
-                <div class="left-market-box" style="border-top: 4px solid {vop_renk};">
-                    <span style="color:#a3a3a3; font-weight:bold; font-size:12px;">🚀 BIST 30</span><br>
-                    <span style="font-size:22px; font-weight:900; color:{vop_renk};">{vop_guncel:,.2f}</span><br>
-                    <span style="font-size:14px; font-weight:bold; color:{vop_renk};">{vop_degisim:+.2f}%</span>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown('<div class="left-market-box">🚀 BIST 30<br><span style="font-size:20px; font-weight:bold; color:#4ade80;">16,120.50</span></div>', unsafe_allow_html=True)
-        except:
-            st.markdown('<div class="left-market-box">🚀 BIST 30<br><span style="font-size:20px; font-weight:bold; color:#4ade80;">16,120.50</span></div>', unsafe_allow_html=True)
-
-# 📍 2. ORTA SÜTUN (Zaman Dilimi Yönetimi)
-with top_col2:
+# 🧭 SOL BAŞ: Saniye Saniye İlerleyen Dijital Saat
+with grid_col1:
     if has_pytz:
-        tr_time_zone = pytz.timezone("Europe/Istanbul")
-        su_an_tr = datetime.now(tr_time_zone)
+        tz = pytz.timezone("Europe/Istanbul")
+        su_an = datetime.now(tz)
     else:
-        # Eğer sunucuda pytz yüklenirken beklenmedik bir durum olursa manuel olarak UTC+3 ekle
         from datetime import timedelta
-        su_an_tr = datetime.utcnow() + timedelta(hours=3)
-        
-    saat_str = su_an_tr.strftime("%H:%M:%S")
+        su_an = datetime.utcnow() + timedelta(hours=3)
     
-    # Çalışma saatleri kontrolü (Hafta içi 10:00 - 18:15 TR Saati)
-    hafta_gunu = su_an_tr.weekday()
-    saat_dakika = su_an_tr.hour * 100 + su_an_tr.minute
+    saat_str = su_an.strftime("%H:%M:%S")
     
-    if hafta_gunu < 5 and (1000 <= saat_dakika <= 1815):
-        piyasa_durumu = "🟢 HİSSE SENEDİ PİYASASI AÇIK"
-        durum_renk = "#4ade80"
-    else:
-        piyasa_durumu = "🔴 HİSSE SENEDİ PİYASASI KAPALI"
-        durum_renk = "#f87171"
-        
     st.markdown(f"""
-    <div class="time-status-box">
-        <span style="color:#a3a3a3; font-weight:bold; font-size:12px;">⏱️ SON GÜNCELLEME (TSİ)</span><br>
-        <span style="font-size:24px; font-weight:900; color:#38bdf8;">{saat_str}</span><br>
-        <span style="font-size:12px; font-weight:bold; color:{durum_renk};">{piyasa_durumu}</span>
+    <div class="time-box">
+        <span style="color:#ffffff; font-weight:bold; font-size:11px;">⏱️ CANLI SİSTEM SAATİ</span><br>
+        <span style="font-size:26px; font-weight:900; color:#ffffff;">{saat_str}</span>
     </div>
     """, unsafe_allow_html=True)
 
-# 📍 3. SAĞ SÜTUN (KAP & Piyasa Gündemi)
-with top_col3:
-    st.markdown('<div class="news-box">', unsafe_allow_html=True)
-    st.markdown("<b style='color:#38bdf8; font-size:13px;'>🔔 Son Dakika KAP & Piyasa Gündemi</b>", unsafe_allow_html=True)
+# Verileri Çekme Fonksiyonu
+def endeks_veri_cek(ticker_kod):
+    try:
+        t = yf.Ticker(ticker_kod)
+        h = t.history(period="2d")
+        if not h.empty and len(h) >= 2:
+            guncel = h['Close'].iloc[-1]
+            onceki = h['Close'].iloc[-2]
+            degisim = ((guncel - onceki) / onceki) * 100
+            return guncel, degisim
+        return None, None
+    except:
+        return None, None
+
+# 🏛️ BIST 100
+with grid_col2:
+    b100_f, b100_d = endeks_veri_cek("XU100.IS")
+    if b100_f:
+        renk = "#4ade80" if b100_d >= 0 else "#f87171"
+        st.markdown(f'<div class="market-box" style="border-top: 4px solid {renk};"><span style="color:#a3a3a3; font-size:12px; font-weight:bold;">🏛️ BIST 100</span><br><span style="font-size:20px; font-weight:900; color:{renk};">{b100_f:,.2f}</span><br><span style="font-size:12px; font-weight:bold; color:{renk};">{b100_d:+.2f}%</span></div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="market-box">🏛️ BIST 100<br><span style="font-size:18px; color:#a3a3a3;">Yükleniyor...</span></div>', unsafe_allow_html=True)
+
+# 🚀 BIST 30
+with grid_col3:
+    b30_f, b30_d = endeks_veri_cek("XU030.IS")
+    if b30_f:
+        renk = "#4ade80" if b30_d >= 0 else "#f87171"
+        st.markdown(f'<div class="market-box" style="border-top: 4px solid {renk};"><span style="color:#a3a3a3; font-size:12px; font-weight:bold;">🚀 BIST 30</span><br><span style="font-size:20px; font-weight:900; color:{renk};">{b30_f:,.2f}</span><br><span style="font-size:12px; font-weight:bold; color:{renk};">{b30_d:+.2f}%</span></div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="market-box">🚀 BIST 30<br><span style="font-size:18px; color:#a3a3a3;">Yükleniyor...</span></div>', unsafe_allow_html=True)
+
+# ⚡ VİOP (BIST 30 Yakın Vade Kontratı Yahoo Ticker'ı)
+with grid_col4:
+    viop_f, viop_d = endeks_veri_cek("F_XU0300226.IS")  # Yahoo Finans standart vadeli kontrat kodu
+    if not viop_f:  # Eğer vadeli sembol değiştiyse yedek olarak ana endeksi göster
+        viop_f, viop_d = b30_f, b30_d
     
-    haberler = [
-        "📢 **SEKUR:** Şirket maddi malvarlıklarını nakit satma kararı aldı. Ayrılma hakkı 6,06 TL.",
-        "⚡ **BINHO:** Meta Mobilite, Mardin'de dev depolamalı güneş santrali (GES) kuracak.",
-        "🏢 **HLGYO:** Dilovası'ndaki arsayı borç azaltma amacıyla 1,45 milyar TL'ye sattı."
-    ]
-    for h in haberler:
-        st.markdown(f'<div class="news-item">{h}</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    renk = "#4ade80" if viop_d >= 0 else "#f87171"
+    st.markdown(f'<div class="market-box" style="border-top: 4px solid {renk};"><span style="color:#a3a3a3; font-size:12px; font-weight:bold;">⚡ VİOP (XU030 Vade)</span><br><span style="font-size:20px; font-weight:900; color:{renk};">{viop_f:,.2f}</span><br><span style="font-size:12px; font-weight:bold; color:{renk};">{viop_d:+.2f}%</span></div>', unsafe_allow_html=True)
 
 st.markdown("---")
 
-# Hisse Girişi
-hisse_input = st.text_input("Hisse Kodu Yazın ve Enter'a Basın (Örn: ASELS, THYAO, EKOS):", "ASELS").upper().strip()
+# --- 🔥 ALT KATMAN: ÇOKLU HİSSE SEÇİMİ VE ANLIK TAKİP LİSTESİ 🔥 ---
+st.markdown("### 🦅 Çoklu Hisse Sinyal ve Takip Radarı")
+secilen_hisseler = st.multiselect(
+    "Takip etmek istediğiniz hisseleri seçin veya kodunu yazın:",
+    ["ASELS", "THYAO", "EKOS", "EREGL", "TUPRS", "FROTO", "BIMAS", "SASA"],
+    default=["ASELS", "THYAO", "EKOS"]
+)
 
-if hisse_input:
-    if not hisse_input.endswith(".IS"):
-        hisse_ticker = f"{hisse_input}.IS"
-    else:
-        hisse_ticker = hisse_input
-
-    try:
-        ticker = yf.Ticker(hisse_ticker)
-        df = ticker.history(period="1y")
-        
+if secilen_hisseler:
+    for hisse in secilen_hisseler:
+        hisse_ticker = f"{hisse.upper().strip()}.IS"
         try:
-            info = ticker.info
-            if not info: info = {}
+            ticker = yf.Ticker(hisse_ticker)
+            df = ticker.history(period="1y")
+            
+            if not df.empty and len(df) >= 20:
+                guncel_fiyat = df['Close'].iloc[-1]
+                
+                # Sinyal Hesaplamaları (Hızlı Özet)
+                ma20 = df['Close'].rolling(window=20).mean().iloc[-1]
+                delta = df['Close'].diff()
+                gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+                loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+                rsi = 100 - (100 / (1 + (gain / (loss + 1e-9)))).iloc[-1]
+                
+                with st.expander(f"📈 {hisse.upper()} - Anlık Fiyat: {guncel_fiyat:.2f} TL (Detayları Görmek İçin Tıklayın)"):
+                    # Sinyal Durumu
+                    if rsi < 45 and guncel_fiyat > ma20:
+                        st.markdown(f'<div class="main-signal" style="background-color: #1e3a24; color: #a2e8b2; padding:15px; font-size:20px !important;">🟢 ALINABİLİR BÖLGE ({hisse.upper()})</div>', unsafe_allow_html=True)
+                    elif rsi > 65:
+                        st.markdown(f'<div class="main-signal" style="background-color: #44191c; color: #f8b4b7; padding:15px; font-size:20px !important;">🔴 SAKIN ALMA! (PAHALI) ({hisse.upper()})</div>', unsafe_allow_html=True)
+                    else:
+                        st.markdown(f'<div class="main-signal" style="background-color: #3e3113; color: #fada8a; padding:15px; font-size:20px !important;">🟡 BEKLE GÖR / KORU ({hisse.upper()})</div>', unsafe_allow_html=True)
+                    
+                    # Kartlar
+                    c1, c2, c3 = st.columns(3)
+                    c1.markdown(f'<div class="instruction-card">📥 AL FİYATI<br><span class="price-style" style="color:#4ade80;">{guncel_fiyat:.2f} TL</span></div>', unsafe_allow_html=True)
+                    c2.markdown(f'<div class="instruction-card">🛡️ STOP LOSS<br><span class="price-style" style="color:#f87171;">{guncel_fiyat*0.97:.2f} TL</span></div>', unsafe_allow_html=True)
+                    c3.markdown(f'<div class="instruction-card">🦅 HEDEF FİYAT<br><span class="price-style" style="color:#38bdf8;">{df["High"].tail(21).max():.2f} TL</span></div>', unsafe_allow_html=True)
         except:
-            info = {}
-        
-        if df.empty or len(df) < 20:
-            st.error("Bu hisse kodu için yeterli geçmiş veri bulunamadı. Lütfen kodu kontrol edin.")
-        else:
-            guncel_fiyat = df['Close'].iloc[-1]
-            
-            # --- TEKNİK HESAPLAMALAR ---
-            ma20_seri = df['Close'].rolling(window=20).mean()
-            ma20 = ma20_seri.iloc[-1] if not ma20_seri.empty else guncel_fiyat
-            
-            delta = df['Close'].diff()
-            gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-            loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-            rs = gain / (loss + 1e-9)
-            rsi = 100 - (100 / (1 + rs))
-            rsi_son = rsi.iloc[-1] if not rsi.empty else 50
-            
-            exp1 = df['Close'].ewm(span=12, adjust=False).mean()
-            exp2 = df['Close'].ewm(span=26, adjust=False).mean()
-            macd_line = exp1 - exp2
-            signal_line = macd_line.rolling(window=9).mean()
-            macd_son = macd_line.iloc[-1] if not macd_line.empty else 0
-            signal_son = signal_line.iloc[-1] if not signal_line.empty else 0
-            
-            low_14 = df['Low'].rolling(window=14).min()
-            high_14 = df['High'].rolling(window=14).max()
-            stoch_k = 100 * ((df['Close'] - low_14) / (high_14 - low_14 + 1e-9))
-            stoch_k_son = stoch_k.iloc[-1] if not stoch_k.empty else 50
-            
-            tp = (df['High'] + df['Low'] + df['Close']) / 3
-            cci = (tp - tp.rolling(window=20).mean()) / (0.015 * tp.rolling(window=20).std() + 1e-9)
-            cci_son = cci.iloc[-1] if not cci.empty else 0
-            
-            son_ay_df = df.tail(21)
-            aylik_en_yuksek = son_ay_df['High'].max()
-            aylik_en_dusuk = son_ay_df['Low'].min()
-            zirveye_uzaklik = ((aylik_en_yuksek - guncel_fiyat) / aylik_en_yuksek) * 100
-
-            # Seviye Belirleme
-            destek_ana = aylik_en_dusuk * 1.02
-            direnc_ana = aylik_en_yuksek
-            stop_loss = destek_ana * 0.98
-
-            puan = 0
-            if rsi_son < 45: puan += 1
-            if guncel_fiyat > ma20: puan += 1
-            if zirveye_uzaklik > 15: puan += 1
-
-            # --- SİNYAL KUTUSU ---
-            if puan >= 2 and guncel_fiyat <= destek_ana * 1.05:
-                st.markdown('<div class="main-signal" style="background-color: #1e3a24; color: #a2e8b2; border: 3px solid #28a745;">🟢 GÖNÜL RAHATLIĞIYLA ALINABİLİR (GÜVENLİ BÖLGE)</div>', unsafe_allow_html=True)
-                islem_durumu = "al"
-            elif guncel_fiyat >= direnc_ana * 0.96 or rsi_son > 65:
-                st.markdown('<div class="main-signal" style="background-color: #44191c; color: #f8b4b7; border: 3px solid #dc3545;">🔴 SAKIN ALMA! (TEHLİKELİ / ÇOK PAHALI)</div>', unsafe_allow_html=True)
-                islem_durumu = "alma"
-            else:
-                st.markdown('<div class="main-signal" style="background-color: #3e3113; color: #fada8a; border: 3px solid #ffc107;">🟡 ACELE ETMEYİN (BEKLE GÖR / KORU)</div>', unsafe_allow_html=True)
-                islem_durumu = "bekle"
-
-            # --- NET İŞLEM TALİMATLARI ---
-            st.markdown("### 🎯 Net İşlem Talimatları")
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.markdown('<div class="instruction-card">', unsafe_allow_html=True)
-                st.write("<p style='color:#b3b3b3; font-weight:bold; margin:0;'>📥 ALINACAK FİYAT</p>", unsafe_allow_html=True)
-                if islem_durumu == "al":
-                    st.markdown(f'<div class="price-style" style="color: #4ade80;">{guncel_fiyat:.2f} TL</div>', unsafe_allow_html=True)
-                elif islem_durumu == "bekle":
-                    st.markdown(f'<div class="price-style" style="color: #fbbf24;">{destek_ana:.2f} TL</div>', unsafe_allow_html=True)
-                else:
-                    st.markdown('<div class="price-style" style="color: #f87171;">ALINMAZ!</div>', unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
-                
-            with col2:
-                st.markdown('<div class="instruction-card">', unsafe_allow_html=True)
-                st.write("<p style='color:#b3b3b3; font-weight:bold; margin:0;'>🛡️ KOL KESME / TEHLİKE SINIRI (STOP)</p>", unsafe_allow_html=True)
-                st.markdown(f'<div class="price-style" style="color: #f87171;">{stop_loss:.2f} TL</div>', unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
-                
-            with col3:
-                st.markdown('<div class="instruction-card">', unsafe_allow_html=True)
-                st.write("<p style='color:#b3b3b3; font-weight:bold; margin:0;'>🦅 KÂR ALMA / HEDEF FİYAT</p>", unsafe_allow_html=True)
-                st.markdown(f'<div class="price-style" style="color: #4ade80;">{direnc_ana:.2f} TL</div>', unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
-
-            # --- PROFESYONEL MUM GRAFİĞİ ---
-            st.markdown("---")
-            st.markdown("### 📈 Strateji Haritası (Son 1 Ay - Günlük Mumlar)")
-            
-            chart_df = df.tail(30).copy()
-            chart_df['Tarih_Str'] = chart_df.index.strftime('%d-%m-%Y')
-            
-            fig = go.Figure()
-            fig.add_trace(go.Candlestick(
-                x=chart_df['Tarih_Str'], open=chart_df['Open'], high=chart_df['High'], low=chart_df['Low'], close=chart_df['Close'],
-                name='Hisse Mumları', increasing_line_color='#22c55e', increasing_fillcolor='#22c55e', decreasing_line_color='#ef4444', decreasing_fillcolor='#ef4444'
-            ))
-            
-            fig.add_shape(type="line", x0=chart_df['Tarih_Str'].iloc[0], y0=direnc_ana, x1=chart_df['Tarih_Str'].iloc[-1], y1=direnc_ana, line=dict(color="#ef4444", width=2.5, dash="dash"))
-            fig.add_shape(type="line", x0=chart_df['Tarih_Str'].iloc[0], y0=destek_ana, x1=chart_df['Tarih_Str'].iloc[-1], y1=destek_ana, line=dict(color="#fbbf24", width=2.5, dash="dash"))
-            fig.add_shape(type="line", x0=chart_df['Tarih_Str'].iloc[0], y0=stop_loss, x1=chart_df['Tarih_Str'].iloc[-1], y1=stop_loss, line=dict(color="#22c55e", width=2.5, dash="dot"))
-            fig.add_shape(type="line", x0=chart_df['Tarih_Str'].iloc[0], y0=guncel_fiyat, x1=chart_df['Tarih_Str'].iloc[-1], y1=guncel_fiyat, line=dict(color="#60a5fa", width=2.5))
-
-            fig.update_layout(xaxis_rangeslider_visible=False, template="plotly_dark", paper_bgcolor='#1e1e24', plot_bgcolor='#1e1e24', height=500, showlegend=False)
-            st.plotly_chart(fig, use_container_width=True)
-
-            # --- VERİ TERMİNALİ ---
-            st.markdown("---")
-            sirket_adi = info.get('longName', f"{hisse_input} Şirket Künyesi")
-            st.markdown(f"### 🦅 {sirket_adi} Detaylı Veri Terminali")
-            
-            term_col1, term_col2, term_col3, term_col4 = st.columns(4)
-            yıllık_en_yuksek = info.get('fiftyTwoWeekHigh', df['High'].max())
-            yıllık_en_dusuk = info.get('fiftyTwoWeekLow', df['Low'].min())
-            gunluk_degisim = ((guncel_fiyat - df['Open'].iloc[-1]) / df['Open'].iloc[-1]) * 100 if df['Open'].iloc[-1] > 0 else 0
-            
-            with term_col1:
-                st.markdown(f'<div class="terminal-card">💡 <b>Anlık Kapanış</b><br><span style="font-size:22px; font-weight:bold; color:#38bdf8;">{guncel_fiyat:.2f} TL</span></div>', unsafe_allow_html=True)
-            with term_col2:
-                renk = "#4ade80" if gunluk_degisim >= 0 else "#f87171"
-                st.markdown(f'<div class="terminal-card">📈 <b>Günlük Değişim</b><br><span style="font-size:22px; font-weight:bold; color:{renk};">{gunluk_degisim:+.2f}%</span></div>', unsafe_allow_html=True)
-            with term_col3:
-                st.markdown(f'<div class="terminal-card">⛰️ <b>52 Haftanın En Yükseği</b><br><span style="font-size:20px; font-weight:bold; color:#f87171;">{yıllık_en_yuksek:.2f} TL</span></div>', unsafe_allow_html=True)
-            with term_col4:
-                st.markdown(f'<div class="terminal-card">🕳️ <b>52 Haftanın En Düşüğü</b><br><span style="font-size:20px; font-weight:bold; color:#4ade80;">{yıllık_en_dusuk:.2f} TL</span></div>', unsafe_allow_html=True)
-
-            # ÇEKMECE 1: Bilanço ve Finansal Kalemler
-            with st.expander("📊 Temel Analiz & Detaylı Bilanço Özeti"):
-                fk = info.get('trailingPE', "N/A")
-                pddd = info.get('priceToBook', "N/A")
-                piyasa_degeri = info.get('marketCap', 0) / 1_000_000_000 if info.get('marketCap') else 0
-                net_kar = info.get('netIncomeToCommon', 0) / 1_000_000 if info.get('netIncomeToCommon') else 0
-                hasilat = info.get('totalRevenue', 0) / 1_000_000 if info.get('totalRevenue') else 0
-                ozkaynak = info.get('bookValue', 0)
-                
-                fk_yaz = f"{fk:.2f}" if isinstance(fk, (int, float)) else "Veri Yok"
-                pddd_yaz = f"{pddd:.2f}" if isinstance(pddd, (int, float)) else "Veri Yok"
-                
-                b1, b2, b3 = st.columns(3)
-                b1.metric("F/K (Fiyat Kazanç Oranı)", fk_yaz)
-                b2.metric("PD/DD (Piyasa / Defter Değeri)", pddd_yaz)
-                b3.metric("Toplam Şirket Piyasa Değeri", f"{piyasa_degeri:.2f} Milyar TL" if piyasa_degeri > 0 else "Veri Yok")
-                
-                b4, b5, b6 = st.columns(3)
-                b4.metric("Son Dönem Net Kârı", f"{net_kar:.2f} Milyon TL" if net_kar > 0 else "Veri Yok")
-                b5.metric("Toplam Yıllık Hasılat / Gelir", f"{hasilat:.2f} Milyon TL" if hasilat > 0 else "Veri Yok")
-                b6.metric("Hisse Başı Özkaynak (Kitap Değeri)", f"{ozkaynak:.2f} TL" if ozkaynak and ozkaynak > 0 else "Veri Yok")
-
-            # ÇEKMECE 2: Teknik Paneli
-            with st.expander("⚙️ Teknik Analiz: İndikatör & Ortalamalar Kombinasyonu"):
-                t_col1, t_col2 = st.columns(2)
-                
-                with t_col1:
-                    st.markdown("<h4 style='color:#60a5fa;'>📌 Hareketli Ortalamalar Trend Raporu</h4>", unsafe_allow_html=True)
-                    ort_df = df.copy()
-                    ortalamalar = [5, 10, 22, 50, 100, 200]
-                    rapor_satirlari = []
-                    for p in ortalamalar:
-                        ma_val = ort_df['Close'].rolling(window=p).mean().iloc[-1]
-                        durum = "🟢 ÜSTÜNDE (Pozitif)" if guncel_fiyat > ma_val else "🔴 ALTINDA (Negatif)"
-                        rapor_satirlari.append({
-                            "🔍 Ortalama Tipi": f"{p} Günlük Ortalama (MA{p})",
-                            "💰 Değer": f"{ma_val:.2f} TL",
-                            "🚦 Durum": durum
-                        })
-                    if rapor_satirlari:
-                        st.table(pd.DataFrame(rapor_satirlari))
-                
-                with t_col2:
-                    st.markdown("<h4 style='color:#60a5fa;'>🔮 Popüler Osilatör Sinyal Durumları</h4>", unsafe_allow_html=True)
-                    
-                    rsi_durum = "🟡 NÖTR"
-                    if rsi_son < 40: rsi_durum = "🟢 AL (Aşırı Satım)"
-                    elif rsi_son > 65: rsi_durum = "🔴 SAT (Aşırı Alım)"
-                    
-                    macd_durum = "🟢 AL (Pozitif)" if macd_son > signal_son else "🔴 SAT (Negatif)"
-                    stoch_durum = "🟢 AL (Ucuz)" if stoch_k_son < 30 else ("🔴 SAT (Şişmiş)" if stoch_k_son > 75 else "🟡 NÖTR")
-                    cci_durum = "🟢 AL" if cci_son < -100 else ("🔴 SAT" if cci_son > 100 else "🟡 NÖTR")
-                    
-                    osc_satirlari = [
-                        {"📊 Osilatör Adı": "RSI (Göreceli Güç Endeksi)", "🔢 Durum Değeri": f"{rsi_son:.2f}", "🚦 Sinyal Durumu": rsi_durum},
-                        {"📊 Osilatör Adı": "MACD Trend Çizgisi", "🔢 Durum Değeri": f"{macd_son:.2f}", "🚦 Sinyal Durumu": macd_durum},
-                        {"📊 Osilatör Adı": "Stochastic Osilatör", "🔢 Durum Değeri": f"{stoch_k_son:.2f}", "🚦 Sinyal Durumu": stoch_durum},
-                        {"📊 Osilatör Adı": "CCI (Emtia Kanal Endeksi)", "🔢 Durum Değeri": f"{cci_son:.2f}", "🚦 Sinyal Durumu": cci_durum}
-                    ]
-                    if osc_satirlari:
-                        st.table(pd.DataFrame(osc_satirlari))
-
-            # --- YAPAY ZEKA TEKNİK ANALİZ YORUMLARI ---
-            st.markdown('<div class="comment-card">', unsafe_allow_html=True)
-            st.markdown("### 🤖 Radar Yapay Zeka Analiz Notları")
-            
-            yorumlar = []
-            if rsi_son > 65:
-                yorumlar.append(f"⚠️ **RSI Değeri ({rsi_son:.1f}):** Aşırı alım bölgesine çok yakın. Hisse çok hızlı yükselmiş, buralardan girmek riskli.")
-            elif rsi_son < 40:
-                yorumlar.append(f"📊 **RSI Değeri ({rsi_son:.1f}):** Güvenli / Ucuzluk bölgesinde. Satıcıların iştahı azalmış, dipten dönüş emareleri.")
-            else:
-                yorumlar.append(f"📊 **RSI Değeri ({rsi_son:.1f}):** Dengeli bölgede, aşırılık yok.")
-
-            if guncel_fiyat > ma20:
-                yorumlar.append(f"📈 **Hareketli Ortalama:** Fiyat 20 günlük ortalamanın ({ma20:.2f} TL) üzerinde. Trend yönü yukarı yönlü pozitif.")
-            else:
-                yorumlar.append(f"📉 **Hareketli Ortalama:** Fiyat 20 günlük ortalamanın ({ma20:.2f} TL) altında. Kısa vadeli baskı devam ediyor.")
-
-            for yorum in yorumlar:
-                st.write(yorum)
-                
-            st.markdown('</div>', unsafe_allow_html=True)
-
-    except Exception as e:
-        st.error("Hisse analiz verileri yüklenirken bir veri uyuşmazlığı yaşandı.")
+            pass
+else:
+    st.info("Lütfen takip etmek için yukarıdaki kutudan en az bir hisse seçin broker.")
