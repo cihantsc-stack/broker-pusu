@@ -10,7 +10,6 @@ st.set_page_config(page_title="Broker Sinyal Radarı", layout="wide")
 # CSS ile Arka Planı Gri Yapma, Yazı Renklerini Okunabilir Hale Getirme
 st.markdown("""
     <style>
-    /* Ana şık koyu gri arka plan */
     .stApp {
         background-color: #1e1e24 !important;
         color: #f3f4f6 !important;
@@ -23,7 +22,6 @@ st.markdown("""
         border-radius: 16px !important; 
         padding: 20px !important; 
     }
-    /* Üst Sinyal Kutusu */
     .main-signal {
         font-size: 32px !important;
         font-weight: 900 !important;
@@ -33,7 +31,6 @@ st.markdown("""
         margin-bottom: 25px;
         letter-spacing: 1px;
     }
-    /* İşlem Kartları */
     .instruction-card {
         background: #25252b;
         padding: 20px;
@@ -47,7 +44,6 @@ st.markdown("""
         font-weight: bold !important;
         margin-top: 10px;
     }
-    /* Kılavuz ve Yorum Kartları */
     .comment-card {
         background: #25252b;
         padding: 22px;
@@ -63,7 +59,6 @@ st.markdown("""
         border: 1px dashed #4b5563;
         margin-top: 15px;
     }
-    /* Veri Terminali Kartları */
     .terminal-card {
         background: #25252b;
         padding: 15px;
@@ -72,14 +67,13 @@ st.markdown("""
         text-align: center;
     }
     
-    /* 🔥 OKUNMAYAN METRİK VE TABLO BAŞLIKLARINI DÜZELTEN SİHİRLİ CSS KODLARI 🔥 */
     [data-testid="stMetricLabel"] {
         color: #e5e7eb !important;
         font-size: 14px !important;
         font-weight: bold !important;
     }
     [data-testid="stMetricValue"] {
-        color: #38bdf8 !important; /* Canlı Açık Mavi */
+        color: #38bdf8 !important;
         font-size: 24px !important;
         font-weight: 800 !important;
     }
@@ -89,7 +83,7 @@ st.markdown("""
     }
     th {
         background-color: #32323a !important;
-        color: #60a5fa !important; /* Tablo başlıkları parlak mavi */
+        color: #60a5fa !important;
         font-weight: bold !important;
         font-size: 14px !important;
     }
@@ -97,7 +91,6 @@ st.markdown("""
         color: #f3f4f6 !important;
         font-size: 13px !important;
     }
-    /* Çekmece Başlıkları Parlak Beyaz */
     .stExpander p {
         color: #ffffff !important;
         font-weight: bold !important;
@@ -122,7 +115,13 @@ if hisse_input:
         # Veri Çekme
         ticker = yf.Ticker(hisse_ticker)
         df = ticker.history(period="1y")
-        info = ticker.info
+        
+        # Güvenli info çekme (Hata vermemesi için boş sözlük koruması)
+        try:
+            info = ticker.info
+            if not info: info = {}
+        except:
+            info = {}
         
         if df.empty:
             st.error("Hisse kodu bulunamadı. Lütfen doğru yazdığınızdan emin olun.")
@@ -194,168 +193,4 @@ if hisse_input:
                 
             with col3:
                 st.markdown('<div class="instruction-card">', unsafe_allow_html=True)
-                st.write("<p style='color:#b3b3b3; font-weight:bold; margin:0;'>🦅 KÂR ALMA / HEDEF FİYAT</p>", unsafe_allow_html=True)
-                st.markdown(f'<div class="price-style" style="color: #4ade80;">{direnc_ana:.2f} TL</div>', unsafe_allow_html=True)
-                st.caption("Hisse bu fiyata geldiğinde kârı cebine koy.")
-                st.markdown('</div>', unsafe_allow_html=True)
-
-            # --- 3. ADIM: PROFESYONEL MUM GRAFİĞİ ---
-            st.markdown("---")
-            st.markdown("### 📈 Strateji Haritası (Son 1 Ay - Günlük Mumlar)")
-            
-            chart_df = df.tail(30).copy()
-            chart_df['Tarih_Str'] = chart_df.index.strftime('%d-%m-%Y')
-            
-            fig = go.Figure()
-            
-            fig.add_trace(go.Candlestick(
-                x=chart_df['Tarih_Str'],
-                open=chart_df['Open'],
-                high=chart_df['High'],
-                low=chart_df['Low'],
-                close=chart_df['Close'],
-                name='Hisse Mumları',
-                increasing_line_color='#22c55e',
-                increasing_fillcolor='#22c55e',
-                decreasing_line_color='#ef4444',
-                decreasing_fillcolor='#ef4444'
-            ))
-            
-            fig.add_shape(type="line", x0=chart_df['Tarih_Str'].iloc[0], y0=direnc_ana, x1=chart_df['Tarih_Str'].iloc[-1], y1=direnc_ana, line=dict(color="#ef4444", width=2.5, dash="dash"))
-            fig.add_annotation(x=chart_df['Tarih_Str'].iloc[-1], y=direnc_ana, text=f"  Hedef: {direnc_ana:.2f} TL", showarrow=False, xanchor="left", font=dict(color="#ef4444", size=12, family="Arial-Bold"))
-
-            fig.add_shape(type="line", x0=chart_df['Tarih_Str'].iloc[0], y0=destek_ana, x1=chart_df['Tarih_Str'].iloc[-1], y1=destek_ana, line=dict(color="#fbbf24", width=2.5, dash="dash"))
-            fig.add_annotation(x=chart_df['Tarih_Str'].iloc[-1], y=destek_ana, text=f"  Pusu: {destek_ana:.2f} TL", showarrow=False, xanchor="left", font=dict(color="#fbbf24", size=12, family="Arial-Bold"))
-
-            fig.add_shape(type="line", x0=chart_df['Tarih_Str'].iloc[0], y0=stop_loss, x1=chart_df['Tarih_Str'].iloc[-1], y1=stop_loss, line=dict(color="#22c55e", width=2.5, dash="dot"))
-            fig.add_annotation(x=chart_df['Tarih_Str'].iloc[-1], y=stop_loss, text=f"  Stop: {stop_loss:.2f} TL", showarrow=False, xanchor="left", font=dict(color="#22c55e", size=12, family="Arial-Bold"))
-            
-            fig.add_shape(type="line", x0=chart_df['Tarih_Str'].iloc[0], y0=guncel_fiyat, x1=chart_df['Tarih_Str'].iloc[-1], y1=guncel_fiyat, line=dict(color="#60a5fa", width=2.5))
-            fig.add_annotation(x=chart_df['Tarih_Str'].iloc[-1], y=guncel_fiyat, text=f"  Anlık: {guncel_fiyat:.2f} TL", showarrow=False, xanchor="left", font=dict(color="#60a5fa", size=12, family="Arial-Bold"))
-
-            fig.update_layout(
-                xaxis_rangeslider_visible=False,
-                xaxis=dict(type='category', tickangle=-45),
-                hovermode="x unified",
-                template="plotly_dark",
-                paper_bgcolor='#1e1e24',
-                plot_bgcolor='#1e1e24',
-                margin=dict(l=20, r=150, t=20, b=20),
-                height=550,
-                showlegend=False
-            )
-            st.plotly_chart(fig, use_container_width=True)
-
-            # --- 4. ADIM: GRAFİK OKUMA KILAVUZU ---
-            st.markdown('<div class="guide-card">', unsafe_allow_html=True)
-            st.markdown("### 📖 Grafik Nasıl Okunur? (Kılavuz)")
-            st.markdown(f"1️⃣ **🔴 Hedef Çizgisi ({direnc_ana:.2f} TL):** Hisse yükseldiğinde kâr alıp çıkacağımız tepe bölgesidir.")
-            st.markdown(f"2️⃣ **🔵 Anlık Fiyat Çizgisi ({guncel_fiyat:.2f} TL):** Hissenin şu an pazarda işlem gördüğü anlık değeridir.")
-            st.markdown(f"3️⃣ **🟡 Pusu Çizgisi ({destek_ana:.2f} TL):** Bizim de pusuya yatıp alım yapacağımız en güvenli dip bölgesidir.")
-            st.markdown(f"4️⃣ **🟢 Stop Çizgisi ({stop_loss:.2f} TL):** Daha büyük zarar etmemek için pozisyonu kapatıp kaçacağımız emniyet kemeridir.")
-            st.markdown('</div>', unsafe_allow_html=True)
-
-            # --- 5. ADIM: EKSİKSİZ VERİ TERMİNALİ (TELEGRAM MANTIĞI) ---
-            st.markdown("---")
-            sirket_adi = info.get('longName', f"{hisse_input} Şirket Künyesi")
-            st.markdown(f"### 🦅 {sirket_adi} Detaylı Veri Terminali")
-            
-            # Üst Canlı Metrikler
-            term_col1, term_col2, term_col3, term_col4 = st.columns(4)
-            yıllık_en_yuksek = info.get('fiftyTwoWeekHigh', df['High'].max())
-            yıllık_en_dusuk = info.get('fiftyTwoWeekLow', df['Low'].min())
-            gunluk_degisim = ((guncel_fiyat - df['Open'].iloc[-1]) / df['Open'].iloc[-1]) * 100
-            
-            with term_col1:
-                st.markdown(f'<div class="terminal-card">💡 <b style="color:#e5e7eb;">Anlık Kapanış</b><br><span style="font-size:22px; font-weight:bold; color:#38bdf8;">{guncel_fiyat:.2f} TL</span></div>', unsafe_allow_html=True)
-            with term_col2:
-                renk = "#4ade80" if gunluk_degisim >= 0 else "#f87171"
-                st.markdown(f'<div class="terminal-card">📈 <b style="color:#e5e7eb;">Günlük Değişim</b><br><span style="font-size:22px; font-weight:bold; color:{renk};">{gunluk_degisim:+.2f}%</span></div>', unsafe_allow_html=True)
-            with term_col3:
-                st.markdown(f'<div class="terminal-card">⛰️ <b style="color:#e5e7eb;">52 Haftanın En Yükseği</b><br><span style="font-size:20px; font-weight:bold; color:#f87171;">{yıllık_en_yuksek:.2f} TL</span></div>', unsafe_allow_html=True)
-            with term_col4:
-                st.markdown(f'<div class="terminal-card">🕳️ <b style="color:#e5e7eb;">52 Haftanın En Düşüğü</b><br><span style="font-size:20px; font-weight:bold; color:#4ade80;">{yıllık_en_dusuk:.2f} TL</span></div>', unsafe_allow_html=True)
-
-            # ÇEKMECE 1: Bilanço ve Genişletilmiş Finansal Kalemler
-            with st.expander("📊 Temel Analiz & Detaylı Bilanço Özeti"):
-                fk = info.get('trailingPE', "N/A")
-                pddd = info.get('priceToBook', "N/A")
-                piyasa_degeri = info.get('marketCap', 0) / 1_000_000_000 # Milyar TL
-                net_kar = info.get('netIncomeToCommon', 0) / 1_000_000 # Milyon TL
-                hasilat = info.get('totalRevenue', 0) / 1_000_000 # Milyon TL
-                ozkaynak = info.get('bookValue', 0) # Hisse başına özkaynak
-                
-                fk_yaz = f"{fk:.2f}" if isinstance(fk, (int, float)) else "Veri Yok"
-                pddd_yaz = f"{pddd:.2f}" if isinstance(pddd, (int, float)) else "Veri Yok"
-                
-                b1, b2, b3 = st.columns(3)
-                b1.metric("F/K (Fiyat Kazanç Oranı)", fk_yaz)
-                b2.metric("PD/DD (Piyasa / Defter Değeri)", pddd_yaz)
-                b3.metric("Toplam Şirket Piyasa Değeri", f"{piyasa_degeri:.2f} Milyar TL" if piyasa_degeri > 0 else "Veri Yok")
-                
-                b4, b5, b6 = st.columns(3)
-                b4.metric("Son Dönem Net Kârı", f"{net_kar:.2f} Milyon TL" if net_kar > 0 else "Veri Yok")
-                b5.metric("Toplam Yıllık Hasılat / Gelir", f"{hasilat:.2f} Milyon TL" if hasilat > 0 else "Veri Yok")
-                b6.metric("Hisse Başı Kitap Değeri (Özkaynak)", f"{ozkaynak:.2f} TL" if ozkaynak and ozkaynak > 0 else "Veri Yok")
-
-            # ÇEKMECE 2: Teknik İndikatörler ve Hareketli Ortalamalar Paneli
-            with st.expander("⚙️ Teknik Analiz: İndikatör & Ortalamalar Kombinasyonu"):
-                t_col1, t_col2 = st.columns(2)
-                
-                with t_col1:
-                    st.markdown("<h4 style='color:#60a5fa;'>📌 Hareketli Ortalamalar Trend Raporu</h4>", unsafe_allow_html=True)
-                    ort_df = df.copy()
-                    ortalamalar = [5, 10, 22, 50, 100, 200]
-                    rapor_satirlari = []
-                    for p in ortalamalar:
-                        ma_val = ort_df['Close'].rolling(window=p).mean().iloc[-1]
-                        durum = "🟢 ÜSTÜNDE (Pozitif)" if guncel_fiyat > ma_val else "🔴 ALTINDA (Negatif)"
-                        rapor_satirlari.append({
-                            "🔍 Ortalama Tipi": f"{p} Günlük Ortalama (MA{p})",
-                            "💰 Değer": f"{ma_val:.2f} TL",
-                            "🚦 Durum": durum
-                        })
-                    st.table(pd.DataFrame(rapor_satirlari))
-                
-                with t_col2:
-                    st.markdown("<h4 style='color:#60a5fa;'>🔮 Popüler Osilatör Sinyal Durumları</h4>", unsafe_allow_html=True)
-                    # Basit indikatör durumlarını simüle eden Telegram stili hızlı osilatör matrisi
-                    rsi_durum = "🟡 NÖTR (Dengeli)"
-                    if rsi_son < 40: rsi_durum = "🟢 AŞIRI SATIM (ALIM FIRSATI)"
-                    elif rsi_son > 65: rsi_durum = "🔴 AŞIRI ALIM (RİSKLİ BÖLGE)"
-                    
-                    macd_durum = "🟢 AL (Pozitif Momentum)" if guncel_fiyat > ma20 else "🔴 SAT (Negatif Baskı)"
-                    stoch_durum = "🟢 AL" if rsi_son < 50 else "🟡 BEKLE / NÖTR"
-                    
-                    osc_satirlari = [
-                        {"📊 Osilatör Adı": "RSI (Göreceli Güç Endeksi)", "🔢 Değer": f"{rsi_son:.2f}", "🚦 Sinyal": rsi_durum},
-                        {"📉 MACD Trend Sinyali", "🔢 Durum": "Trend Bazlı", "🚦 Sinyal": macd_durum},
-                        {"🔄 Stochastic Osilatör", "🔢 Durum": "Hızlı Sinyal", "🚦 Sinyal": stoch_durum},
-                        {"📐 CCI (Emtia Kanal Endeksi)", "🔢 Durum": "Dinamik", "🚦 Sinyal": macd_durum}
-                    ]
-                    st.table(pd.DataFrame(osc_satirlari))
-
-            # --- 6. ADIM: YAPAY ZEKA TEKNİK ANALİZ YORUMLARI ---
-            st.markdown('<div class="comment-card">', unsafe_allow_html=True)
-            st.markdown("### 🤖 Radar Yapay Zeka Analiz Notları")
-            
-            yorumlar = []
-            if rsi_son > 65:
-                yorumlar.append(f"⚠️ **RSI Değeri ({rsi_son:.1f}):** Aşırı alım bölgesine çok yakın. Hisse çok hızlı yükselmiş, buralardan girmek riskli.")
-            elif rsi_son < 40:
-                yorumlar.append(f"📊 **RSI Değeri ({rsi_son:.1f}):** Güvenli / Ucuzluk bölgesinde. Satıcıların iştahı azalmış, dipten dönüş emareleri.")
-            else:
-                yorumlar.append(f"📊 **RSI Değeri ({rsi_son:.1f}):** Dengeli bölgede, aşırılık yok.")
-
-            if guncel_fiyat > ma20:
-                yorumlar.append(f"📈 **Hareketli Ortalama:** Fiyat 20 günlük ortalamanın ({ma20:.2f} TL) üzerinde. Trend yönü yukarı yönlü pozitif.")
-            else:
-                yorumlar.append(f"📉 **Hareketli Ortalama:** Fiyat 20 günlük ortalamanın ({ma20:.2f} TL) altında. Kısa vadeli baskı devam ediyor.")
-
-            for yorum in yorumlar:
-                st.write(yorum)
-                
-            st.markdown('</div>', unsafe_allow_html=True)
-
-    except Exception as e:
-        st.error("Veriler yüklenirken bir hata oluştu, lütfen kodu doğru yazdığınızdan emin olun.")
+                st.write("
