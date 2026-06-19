@@ -123,61 +123,59 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 🔥 ÜST KATMAN: TAM İSTEDİĞİN SOL/SAĞ YERLEŞİM 🔥 ---
+# --- 🔥 ÜST KATMAN: SOL/SAĞ YERLEŞİM 🔥 ---
 st.markdown("# 🦅 Broker Sinyal Radarı")
 st.write("Borsa bilgisine ihtiyacınız yok. Yapay zeka sizin yerinize hesaplar ve net işlem talimatı verir.")
 
 top_col1, top_col2 = st.columns([3, 2])
 
-# 📍 1. SOL TARAF (Görselde İşaretlediğin Büyük Sarı Alan)
+# 📍 1. SOL TARAF (İşaretlediğin Büyük Üst Alan)
 with top_col1:
-    try:
-        # Verileri çekiyoruz
-        idx = yf.Ticker("XU100.IS")
-        vop = yf.Ticker("F_XU0300626.IS") # Haziran 2026 Vadeli
-        
-        idx_df = idx.history(period="2d")
-        vop_df = vop.history(period="2d")
-        
-        if vop_df.empty:
-            vop = yf.Ticker("XU030.IS")
-            vop_df = vop.history(period="2d")
-            vop_name = "BIST 30 Endeksi"
-        else:
-            vop_name = "VIOP BIST 30"
-
-        # Sarı alanın içinde yan yana iki kolon açıyoruz
-        left_col1, left_col2 = st.columns(2)
-        
-        # BIST 100 Kartı (İşaretli Alan Sol)
-        if not idx_df.empty:
-            idx_guncel = idx_df['Close'].iloc[-1]
-            idx_degisim = ((idx_guncel - idx_df['Close'].iloc[-2]) / idx_df['Close'].iloc[-2]) * 100
-            idx_renk = "#4ade80" if idx_degisim >= 0 else "#f87171" # Artıysa Yeşil, Eksiyse Kırmızı
-            with left_col1:
+    left_col1, left_col2 = st.columns(2)
+    
+    # BIST 100 Kutusu
+    with left_col1:
+        try:
+            idx = yf.Ticker("XU100.IS")
+            idx_df = idx.history(period="2d")
+            if not idx_df.empty and len(idx_df) >= 2:
+                idx_guncel = idx_df['Close'].iloc[-1]
+                idx_degisim = ((idx_guncel - idx_df['Close'].iloc[-2]) / idx_df['Close'].iloc[-2]) * 100
+                idx_renk = "#4ade80" if idx_degisim >= 0 else "#f87171"
+                
                 st.markdown(f"""
                 <div class="left-market-box" style="border-top: 4px solid {idx_renk};">
                     <span style="color:#a3a3a3; font-weight:bold; font-size:14px;">🏛️ BIST 100 ENDEKSİ</span><br>
                     <span style="font-size:28px; font-weight:900; color:{idx_renk};">{idx_guncel:.2f}</span>
-                    <span style="font-size:18px; font-weight:bold; color:{idx_renk};; margin-left:10px;">{idx_degisim:+.2f}%</span>
+                    <span style="font-size:18px; font-weight:bold; color:{idx_renk}; margin-left:10px;">{idx_degisim:+.2f}%</span>
                 </div>
                 """, unsafe_allow_html=True)
+            else:
+                st.markdown('<div class="left-market-box">🏛️ BIST 100<br><span style="color:#fbbf24;">Veri Alınamadı</span></div>', unsafe_allow_html=True)
+        except:
+            st.markdown('<div class="left-market-box">🏛️ BIST 100<br><span style="color:#f87171;">Bağlantı Hatası</span></div>', unsafe_allow_html=True)
+
+    # VIOP / BIST 30 Kutusu
+    with left_col2:
+        try:
+            vop = yf.Ticker("XU030.IS") # En kararlı endeks sembolü
+            vop_df = vop.history(period="2d")
+            if not vop_df.empty and len(vop_df) >= 2:
+                vop_guncel = vop_df['Close'].iloc[-1]
+                vop_degisim = ((vop_guncel - vop_df['Close'].iloc[-2]) / vop_df['Close'].iloc[-2]) * 100
+                vop_renk = "#4ade80" if vop_degisim >= 0 else "#f87171"
                 
-        # VIOP 30 Kartı (İşaretli Alan Sağ)
-        if not vop_df.empty:
-            vop_guncel = vop_df['Close'].iloc[-1]
-            vop_degisim = ((vop_guncel - vop_df['Close'].iloc[-2]) / vop_df['Close'].iloc[-2]) * 100
-            vop_renk = "#4ade80" if vop_degisim >= 0 else "#f87171" # Artıysa Yeşil, Eksiyse Kırmızı
-            with left_col2:
                 st.markdown(f"""
                 <div class="left-market-box" style="border-top: 4px solid {vop_renk};">
-                    <span style="color:#a3a3a3; font-weight:bold; font-size:14px;">🚀 {vop_name.upper()}</span><br>
+                    <span style="color:#a3a3a3; font-weight:bold; font-size:14px;">🚀 BIST 30 ENDEKSİ</span><br>
                     <span style="font-size:28px; font-weight:900; color:{vop_renk};">{vop_guncel:.2f}</span>
                     <span style="font-size:18px; font-weight:bold; color:{vop_renk}; margin-left:10px;">{vop_degisim:+.2f}%</span>
                 </div>
                 """, unsafe_allow_html=True)
-    except Exception as market_error:
-        st.warning("Canlı endeks verileri şu an piyasa kapalı olduğu için veya bağlantı sebebiyle güncellenemedi.")
+            else:
+                st.markdown('<div class="left-market-box">🚀 BIST 30<br><span style="color:#fbbf24;">Veri Alınamadı</span></div>', unsafe_allow_html=True)
+        except:
+            st.markdown('<div class="left-market-box">🚀 BIST 30<br><span style="color:#f87171;">Bağlantı Hatası</span></div>', unsafe_allow_html=True)
 
 # 📍 2. SAĞ TARAF (KAP & Piyasa Gündemi)
 with top_col2:
@@ -222,7 +220,7 @@ if hisse_input:
         else:
             guncel_fiyat = df['Close'].iloc[-1]
             
-            # --- TEKNİK HESAPLAMALAR ---
+            # --- TEKNİK HESAPMALAR ---
             ma20_seri = df['Close'].rolling(window=20).mean()
             ma20 = ma20_seri.iloc[-1]
             
