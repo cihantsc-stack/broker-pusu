@@ -2,11 +2,12 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
+import plotly.graph_objects as go
 
 # Sayfa Genişliği ve Başlık
 st.set_page_config(page_title="Broker Otomatik Pusu & Karar Terminali", layout="wide")
 
-# CSS ile Görsel Özelleştirmeler (Büyük Sinyal Kutuları İçin)
+# CSS ile Görsel Özelleştirmeler
 st.markdown("""
     <style>
     .stAlert {
@@ -25,7 +26,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown("# 🦅 Broker Otomatik Pusu & Karar Terminali")
-st.write("Sıfır borsa bilgisiyle net karar verin: Yapay zeka sinyalleri tarar, yönü ve emirleri tek bakışta önünüze serer.")
+st.write("Sıfır borsa bilgisiyle net karar verin: Yapay zeka sinyalleri tarar, yönü, destek/dirençli grafikleri tek bakışta önünüze serer.")
 st.markdown("---")
 
 # Kullanıcı Girişi
@@ -80,9 +81,9 @@ if hisse_input:
             direnc_ana = aylik_en_yuksek
             stop_loss = destek_ana * 0.98
 
-            # Matematiksel Potansiyel Hesaplama (Risk-Ödül)
+            # Matematiksel Potansiyel Hesaplama
             potansiyel_kar = ((direnc_ana - guncel_fiyat) / guncel_fiyat) * 100
-            potansiyel_zarar = ((guncel_fiyat - stop_loss) / guncel_fiyat) * 100
+            potansiyel_zar = ((guncel_fiyat - stop_loss) / guncel_fiyat) * 100
 
             # --- OLUMLU PUAN HESAPLAMA ---
             olumlu_puan = 0
@@ -104,8 +105,7 @@ if hisse_input:
                            f"🎯 **NE YAPMALI?** Elinizde varsa tutun ama yeni alım yapacaksanız acele etmeyin. Fiyatın 'Pusu Fiyatına' düşmesini sabırla bekleyin.")
             else:
                 st.markdown('<div class="big-signal" style="background-color: #f8d7da; color: #721c24; border: 2px solid #f5c6cb;">🔴 DUR! KESİNLİKLE GİRİLMEZ (YÜKSEK RİSK / TUZAK)</div>', unsafe_allow_html=True)
-                st.error(f"**EĞİTMEN RAPORU:** TEHLİKE! Hisse ya zirvede mal boşaltma aşamasında ya da indikatörler aşırı şişmiş. Buradan bu kağıdı alan birisi çok büyük ihtimalle terste kalır ve aylarca parasının kurtulmasını bekler. \n\n"
-                         f"🎯 **NE YAPMALI?** Alım yapmayı kesinlikle aklınızdan çıkarın. Eğer elinizde varsa acilen kâr almayı veya stop seviyesine sadık kalmayı düşünün.")
+                st.error(f"**EĞİTMEN RAPORU:** TEHLİKE! Hisse ya zirvede mal boşaltma aşamasında ya da indikatörler aşırı şişmiş. Buradan bu kağıdı alan birisi çok büyük ihtimalle terste kalır.")
 
             # --- NET EMİR VE TALİMAT KUTUSU ---
             st.markdown("#### 🎯 HİÇ BİLMEYENLER İÇIN NOKTA ATIŞI TALİMATLAR")
@@ -129,49 +129,25 @@ if hisse_input:
             st.progress(min(max(int((guncel_fiyat - aylik_en_dusuk) / (aylik_en_yuksek - aylik_en_dusuk + 1e-9) * 100), 0), 100))
             st.caption(f"Sol Taraf: En Düşük ({aylik_en_dusuk:.2f} TL) ---------- Şuan Buradayız ({guncel_fiyat:.2f} TL) ---------- Sağ Taraf: En Yüksek ({aylik_en_yuksek:.2f} TL)")
 
+            # --- PLOTLY DESTEK / DİRENÇ ÇİZGİLİ GRAFİK SİSTEMİ ---
             st.markdown("---")
+            st.markdown("#### 📈 Strateji Çizgili Canlı Trend Grafiği")
+            grafik_secimi = st.radio("Grafik Periyodu Seçin:", ["1 Günlük Kapanışlar (Son 1 Ay)", "Saatlik Hareketler (Son 1 Hafta)"], horizontal=True)
 
-            # Durum Belirleme
-            if guncel_fiyat >= direnc_ana * 0.97:
-                tahta_durumu = "🚨 Zirve / Tepede"
-                strateji = "🚨 DİKKATLİ OL! Hisse aylık zirve direncine dayanmış durumda. Düzeltme bekle."
-            elif guncel_fiyat <= destek_ana * 1.03:
-                tahta_durumu = "🏹 Pusu Bölgesinde"
-                strateji = "🏹 PUSUDA AV ZAMANI! Hisse aylık dip destek seviyelerine yakın. İdeal bölge."
+            # Grafik verisini hazırlama
+            if "1 Günlük" in grafik_secimi:
+                chart_df = df.tail(30)
+                title_suffix = "(Günlük Veri - 1 Ay)"
             else:
-                tahta_durumu = "⏳ Arafta / Dengede"
-                strateji = "⏳ BEKLE GÖR! Hisse ne çok ucuz ne çok pahalı. Destek veya direnç kırılımlarına göre pozisyon al."
+                chart_df = ticker.history(period="7d", interval="1h")
+                title_suffix = "(Saatlik Veri - 1 Hafta)"
 
-            if hacim_orani > 1.5 and yuzde_degisim > 0:
-                balina_notu = "🐋 Hacim son 10 günün ortalamasını patlatmış ve fiyat yukarı gidiyor. Büyük oyuncular mal topluyor."
-                balina_durum = "🟢 Para Girişi Var"
-            elif hacim_orani > 1.5 and yuzde_degisim < 0:
-                balina_notu = "⚠️ Yüksek hacimle fiyat aşağı basılıyor. Büyük oyuncular mal çıkıyor, dikkatli ol."
-                balina_durum = "🔴 Para Çıkışı Var"
-            else:
-                balina_notu = "💤 Büyük oyuncular şu an tahtada agresif bir işlem yapmıyor, sakin seyir."
-                balina_durum = "🟡 Sakin / Rutin"
+            if not chart_df.empty:
+                # Plotly Şekil Nesnesi Oluşturma
+                fig = go.Figure()
 
-            # Alt Panel Düzeni
-            sol_kolon, sag_kolon = st.columns(2)
-            
-            with sol_kolon:
-                st.subheader("📊 Arka Plandaki Teknik Rakamlar")
-                st.write(f"**Güncel Fiyat:** {guncel_fiyat:.2f} TL (%{yuzde_degisim:.2f})")
-                st.write(f"**RSI (14) Güç Endeksi:** {rsi_son:.2f}")
-                st.write(f"**20 Günlük Trend Ortalaması (MA20):** {ma20_son:.2f} TL")
-                st.write(f"**50 Günlük Ana Destek Ortalaması (MA50):** {ma50_son:.2f} TL")
-                st.info(f"Hisse zirvesinden **%{zirveye_uzaklik_yuzde:.2f}** daha ucuz durumda.")
+                # Ana Fiyat Çizgisi
+                fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df['Close'], mode='lines', name='Hisse Fiyatı', line=dict(color='#1f77b4', width=3)))
 
-            with sag_kolon:
-                st.subheader("📈 Risk / Ödül Matematiği")
-                st.write(f"**🎯 Hedefe Giderse Kazanç Potansiyeli:** %{potansiyel_kar:.2f}")
-                st.write(f"**🛡️ Stop Olursa Göze Alınan Kayıp:** %{potansiyel_zarar:.2f}")
-                
-                st.markdown("---")
-                st.subheader("👥 Hacim & Oyuncu Akışı")
-                st.write(f"**Büyük Elin Durumu:** {balina_durum}")
-                st.caption(balina_notu)
-
-    except Exception as e:
-        st.error(f"Sistem hesaplama yaparken bir hata oluştu: {e}")
+                # Hedef / Direnç Çizgisi (Kırmızı)
+                fig.add_shape(type="line", x0=chart_df.index[0], y0=direnc_ana, x1=chart_df.index[-1], y1=direnc_
