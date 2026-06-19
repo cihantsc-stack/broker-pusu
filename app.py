@@ -7,7 +7,7 @@ import numpy as np
 st.set_page_config(page_title="Broker Otomatik Pusu & Karar Terminali", layout="wide")
 
 st.markdown("# 🦅 Broker Otomatik Pusu & Karar Terminali")
-st.write("Sadece hisse kodunu yazın; fiyat, teknik göstergeler, balina/hacim analizi ve pusu seviyeleri otomatik hesaplansın.")
+st.write("Sadece hisse kodunu yazın; yapay zeka karneyi çıkarsın, hiç bilmeyen bile gönül rahatlığıyla karar versin.")
 st.markdown("---")
 
 # Kullanıcı Girişi
@@ -53,35 +53,75 @@ if hisse_input:
             aylik_en_dusuk = son_ay_df['Low'].min()
             zirveye_uzaklik_yuzde = ((aylik_en_yuksek - guncel_fiyat) / aylik_en_yuksek) * 100
             
-            # --- YENİ BÖLÜM: OTOMATİK HACİM VE BALİNA TAKİBİ ---
-            # Son 10 günün hacim ortalaması
+            # Hacim Analizi
             ort_hacim_10gun = df['Volume'].tail(10).mean()
             hacim_orani = guncel_hacim / (ort_hacim_10gun + 1e-9)
-            
-            if hacim_orani > 1.5 and yuzde_degisim > 0:
-                balina_notu = "🐋 GÜÇLÜ OYUNCU GİRİŞİ! Hacim son 10 günün ortalamasını patlatmış ve fiyat yukarı gidiyor. Büyük oyuncular tahtada mal topluyor olabilir."
-                balina_durum = "🟢 Para Girişi Var"
-            elif hacim_orani > 1.5 and yuzde_degisim < 0:
-                balina_notu = "⚠️ OYUNCU ÇIKIŞI / MAL BOŞALTMA! Yüksek hacimle fiyat aşağı basılıyor. Büyük oyuncular mal çıkıyor olabilir, dikkatli ol."
-                balina_durum = "🔴 Para Çıkışı Var"
-            else:
-                balina_notu = "💤 YATAY/HACİMSİZ TAHTA. Büyük oyuncular şu an tahtada agresif bir işlem yapmıyor, küçük yatırımcı dönüyor."
-                balina_durum = "🟡 Sakin / Rutin"
 
-            # Strateji Algoritması
+            # Dinamik Pusu Seviyeleri (Emirler için baz alınacak)
             destek_ana = aylik_en_dusuk * 1.02
             direnc_ana = aylik_en_yuksek
             stop_loss = destek_ana * 0.98
+
+            # --- DİNAMİK KARNE SKORLAMA SİSTEMİ ---
+            olumlu_puan = 0
+            toplam_kriter = 4
             
+            # Kriter 1: RSI Durumu
+            if rsi_son < 45: olumlu_puan += 1
+            # Kriter 2: Fiyat ve Ortalamalar ilişkisi
+            if guncel_fiyat > ma20_son: olumlu_puan += 1
+            # Kriter 3: Zirveye Uzaklık (Ucuzluk)
+            if zirveye_uzaklik_yuzde > 15: olumlu_puan += 1
+            # Kriter 4: Hacimli Alım Gücü
+            if hacim_orani > 1.2 and yuzde_degisim > 0: olumlu_puan += 1
+
+            st.markdown("### 📋 HİSSE YAPAY ZEKA KARNESİ & EMİR TALİMATI")
+            
+            # Puanlamaya göre renkli kutuları ve net işlem talimatlarını yakıyoruz
+            if olumlu_puan >= 3:
+                st.success(f"🟢 **GÜVENLİ BÖLGE (ALIM İÇİN UYGUN) - Skor: {olumlu_puan}/{toplam_kriter}** \n\n"
+                           f"Borsadan hiç anlamayan biri bile bu hisseyi şu an gönül rahatlığıyla portföyüne ekleyebilir. \n\n"
+                           f"🏁 **NET OYUN PLANI:** \n"
+                           f"*   **Alım Yapılabilecek Seviye (Pusu):** {guncel_fiyat:.2f} TL (Mevcut fiyat kademeli alım için makul) \n"
+                           f"*   **Tehlike Anında Kaçış (Stop-Loss):** {stop_loss:.2f} TL (Bu fiyatın altına sarkarsa kol kes, zararı büyütme) \n"
+                           f"*   **Kâr Alıp Çıkacağın Zaman (Hedef Fiyat):** {direnc_ana:.2f} TL (Hisse buraya gelirse kârını al, vedalaş)")
+            elif olumlu_puan == 2:
+                st.warning(f"🟡 **DENGELİ / BEKLE GÖR BÖLGESİ - Skor: {olumlu_puan}/{toplam_kriter}** \n\n"
+                           f"Şu an ne çok ucuz ne çok pahalı. Acele edip bodoslama dalmayın. \n\n"
+                           f"🏁 **NET OYUN PLANI:** \n"
+                           f"*   **Alım Yapılabilecek Seviye (Pusu):** {destek_ana:.2f} TL (Fiyatın buraya biraz daha gevşemesini beklersen riskin sıfırlanır) \n"
+                           f"*   **Tehlike Anında Kaçış (Stop-Loss):** {stop_loss:.2f} TL (Destek altı kapanış stop gerektirir) \n"
+                           f"*   **Kâr Alıp Çıkacağın Zaman (Hedef Fiyat):** {direnc_ana:.2f} TL (Zirve direncine doğru satış düşünülmeli)")
+            else:
+                st.error(f"🔴 **TEHLİKELİ BÖLGE (UZAK DUR / ALMA!) - Skor: {olumlu_puan}/{toplam_kriter}** \n\n"
+                         f"DUR! Borsadan anlamıyorsanız bu aşamada bu hisseden kesinlikle uzak durmalısınız. Hisse tepeye yakın veya aşırı şişmiş durumda. \n\n"
+                         f"🏁 **NET OYUN PLANI:** \n"
+                         f"*   **Alım Yapılabilecek Seviye (Pusu):** ALMA! (Fiyat çok şişmiş, kesinlikle buradan maliyetlenme) \n"
+                         f"*   **Eğer Elinde Varsa Kaçış (Stop-Loss):** {guncel_fiyat * 0.95:.2f} TL (Mevcut fiyatın %5 altına stop koy, terste kalma) \n"
+                         f"*   **Kâr Alıp Çıkacağın Zaman (Hedef Fiyat):** {direnc_ana:.2f} TL (Zirve geçilemezse nakde dön)")
+
+            st.markdown("---")
+
+            # Durum Belirleme
             if guncel_fiyat >= direnc_ana * 0.97:
                 tahta_durumu = "🚨 Zirve / Tepede"
-                strateji = "🚨 DİKKATLİ OL! Hisse aylık zirve direncine dayanmış durumda. Düzeltme bekle."
+                strateji = "🚨 DİKKATLİ OL! Hisse aylık zirve direncine dayanmış durumda. Buradan atlamak risklidir, düzeltme bekle."
             elif guncel_fiyat <= destek_ana * 1.03:
                 tahta_durumu = "🏹 Pusu Bölgesinde"
-                strateji = "🏹 PUSUDA AV ZAMANI! Hisse aylık dip destek seviyelerine yakın. İdeal bölge."
+                strateji = "🏹 PUSUDA AV ZAMANI! Hisse aylık dip destek seviyelerine yakın. Kademeli alım için ideal bölge."
             else:
                 tahta_durumu = "⏳ Arafta / Dengede"
-                strateji = "⏳ BEKLE GÖR! Hisse ne çok ucuz ne çok pahalı. Destek/direnç kırılımını izle."
+                strateji = "⏳ BEKLE GÖR! Hisse ne çok ucuz ne çok pahalı. Destek veya direnç kırılımlarına göre pozisyon al."
+
+            if hacim_orani > 1.5 and yuzde_degisim > 0:
+                balina_notu = "🐋 Hacim son 10 günün ortalamasını patlatmış ve fiyat yukarı gidiyor. Büyük oyuncular mal topluyor olabilir."
+                balina_durum = "🟢 Para Girişi Var"
+            elif hacim_orani > 1.5 and yuzde_degisim < 0:
+                balina_notu = "⚠️ Yüksek hacimle fiyat aşağı basılıyor. Büyük oyuncular mal çıkıyor olabilir, dikkatli ol."
+                balina_durum = "🔴 Para Çıkışı Var"
+            else:
+                balina_notu = "💤 Büyük oyuncular şu an tahtada agresif bir işlem yapmıyor, sakin seyir."
+                balina_durum = "🟡 Sakin / Rutin"
 
             # Üst Metrikler Paneli
             col1, col2, col3, col4 = st.columns(4)
@@ -111,11 +151,9 @@ if hisse_input:
                 st.write(f"**En Düşük (Dip):** {aylik_en_dusuk:.2f} TL")
                 st.info(f"Hisse aylık zirvesinden **%{zirveye_uzaklik_yuzde:.2f}** aşağıda işlem görüyor.")
                 
-                # --- GÜNCELLENEN OTOMATİK BÖLÜM ---
                 st.markdown("---")
-                st.subheader("👥 Otomatic Hacim & Oyuncu Akış Analizi")
+                st.subheader("👥 Otomatik Hacim & Oyuncu Akış Analizi")
                 st.write(f"**Tahta Hacim Durumu:** {balina_durum}")
-                st.write(f"**Günlük Hacim / 10 Günlük Ortalama Hacim:** %{hacim_orani*100:.1f}")
                 st.info(balina_notu)
 
             with sag_kolon:
