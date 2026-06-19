@@ -66,25 +66,25 @@ st.markdown("""
         border: 1px solid #32323a;
         text-align: center;
     }
-    .market-card {
+    /* Sarı Alandaki Canlı Endeks Kartları Tasarımı */
+    .left-market-box {
         background: #25252b;
-        padding: 8px 12px;
-        border-radius: 8px;
-        border: 1px solid #3b82f6;
+        padding: 15px 20px;
+        border-radius: 12px;
+        border: 1px solid #3e3e4a;
         text-align: center;
-        margin-bottom: 5px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
     }
-    /* Canlı Haber Bandı Kutusu */
+    /* Sağdaki Haber Kutusu Tasarımı */
     .news-box {
         background: #25252b;
         padding: 12px 15px;
         border-radius: 8px;
         border: 1px solid #4b5563;
-        margin-top: 10px;
     }
     .news-item {
         font-size: 13px !important;
-        padding: 4px 0;
+        padding: 5px 0;
         border-bottom: 1px solid #32323a;
         color: #e5e7eb !important;
     }
@@ -123,17 +123,18 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 🔥 ÜST BAŞLIK, ENDEKS/VIOP VE ANLIK HABER HİZALAMASI 🔥 ---
+# --- 🔥 ÜST KATMAN: TAM İSTEDİĞİN SOL/SAĞ YERLEŞİM 🔥 ---
+st.markdown("# 🦅 Broker Sinyal Radarı")
+st.write("Borsa bilgisine ihtiyacınız yok. Yapay zeka sizin yerinize hesaplar ve net işlem talimatı verir.")
+
 top_col1, top_col2 = st.columns([3, 2])
 
+# 📍 1. SOL TARAF (Görselde İşaretlediğin Büyük Sarı Alan)
 with top_col1:
-    st.markdown("# 🦅 Broker Sinyal Radarı")
-    st.write("Borsa bilgisine ihtiyacınız yok. Yapay zeka sizin yerinize hesaplar ve net işlem talimatı verir.")
-
-with top_col2:
     try:
+        # Verileri çekiyoruz
         idx = yf.Ticker("XU100.IS")
-        vop = yf.Ticker("F_XU0300626.IS") # Haziran 2026 Vadeli Kontrat
+        vop = yf.Ticker("F_XU0300626.IS") # Haziran 2026 Vadeli
         
         idx_df = idx.history(period="2d")
         vop_df = vop.history(period="2d")
@@ -141,33 +142,48 @@ with top_col2:
         if vop_df.empty:
             vop = yf.Ticker("XU030.IS")
             vop_df = vop.history(period="2d")
-            vop_name = "BIST 30"
+            vop_name = "BIST 30 Endeksi"
         else:
-            vop_name = "VIOP 30"
+            vop_name = "VIOP BIST 30"
 
-        m_col1, m_col2 = st.columns(2)
+        # Sarı alanın içinde yan yana iki kolon açıyoruz
+        left_col1, left_col2 = st.columns(2)
         
+        # BIST 100 Kartı (İşaretli Alan Sol)
         if not idx_df.empty:
             idx_guncel = idx_df['Close'].iloc[-1]
             idx_degisim = ((idx_guncel - idx_df['Close'].iloc[-2]) / idx_df['Close'].iloc[-2]) * 100
-            idx_renk = "#4ade80" if idx_degisim >= 0 else "#f87171"
-            with m_col1:
-                st.markdown(f'<div class="market-card" style="border-color: {idx_renk};">🏛️ <span style="color:#e5e7eb; font-weight:bold; font-size:13px;">BIST 100</span><br><span style="font-size:18px; font-weight:bold; color:{idx_renk};">{idx_guncel:.2f}</span><br><span style="font-size:12px; color:{idx_renk};">{idx_degisim:+.2f}%</span></div>', unsafe_allow_html=True)
+            idx_renk = "#4ade80" if idx_degisim >= 0 else "#f87171" # Artıysa Yeşil, Eksiyse Kırmızı
+            with left_col1:
+                st.markdown(f"""
+                <div class="left-market-box" style="border-top: 4px solid {idx_renk};">
+                    <span style="color:#a3a3a3; font-weight:bold; font-size:14px;">🏛️ BIST 100 ENDEKSİ</span><br>
+                    <span style="font-size:28px; font-weight:900; color:{idx_renk};">{idx_guncel:.2f}</span>
+                    <span style="font-size:18px; font-weight:bold; color:{idx_renk};; margin-left:10px;">{idx_degisim:+.2f}%</span>
+                </div>
+                """, unsafe_allow_html=True)
                 
+        # VIOP 30 Kartı (İşaretli Alan Sağ)
         if not vop_df.empty:
             vop_guncel = vop_df['Close'].iloc[-1]
             vop_degisim = ((vop_guncel - vop_df['Close'].iloc[-2]) / vop_df['Close'].iloc[-2]) * 100
-            vop_renk = "#4ade80" if vop_degisim >= 0 else "#f87171"
-            with m_col2:
-                st.markdown(f'<div class="market-card" style="border-color: {vop_renk};">🚀 <span style="color:#e5e7eb; font-weight:bold; font-size:13px;">{vop_name}</span><br><span style="font-size:18px; font-weight:bold; color:{vop_renk};">{vop_guncel:.2f}</span><br><span style="font-size:12px; color:{vop_renk};">{vop_degisim:+.2f}%</span></div>', unsafe_allow_html=True)
-    except:
-        pass
+            vop_renk = "#4ade80" if vop_degisim >= 0 else "#f87171" # Artıysa Yeşil, Eksiyse Kırmızı
+            with left_col2:
+                st.markdown(f"""
+                <div class="left-market-box" style="border-top: 4px solid {vop_renk};">
+                    <span style="color:#a3a3a3; font-weight:bold; font-size:14px;">🚀 {vop_name.upper()}</span><br>
+                    <span style="font-size:28px; font-weight:900; color:{vop_renk};">{vop_guncel:.2f}</span>
+                    <span style="font-size:18px; font-weight:bold; color:{vop_renk}; margin-left:10px;">{vop_degisim:+.2f}%</span>
+                </div>
+                """, unsafe_allow_html=True)
+    except Exception as market_error:
+        st.warning("Canlı endeks verileri şu an piyasa kapalı olduğu için veya bağlantı sebebiyle güncellenemedi.")
 
-    # --- 🔵 SAĞ ÜST ANLIK HABER AKIŞ BANDI 🔵 ---
+# 📍 2. SAĞ TARAF (KAP & Piyasa Gündemi)
+with top_col2:
     st.markdown('<div class="news-box">', unsafe_allow_html=True)
-    st.markdown("<b style='color:#38bdf8; font-size:13px;'>🔔 Son Dakika KAP & Piyasa Gündemi</b>", unsafe_allow_html=True)
+    st.markdown("<b style='color:#38bdf8; font-size:14px;'>🔔 Son Dakika KAP & Piyasa Gündemi</b>", unsafe_allow_html=True)
     
-    # Gerçek zamanlı tetiklenen önemli borsa ve şirket haber başlıkları
     haberler = [
         "📢 **SEKUR:** Şirket, tüm finansal duran varlık ile maddi malvarlıklarını nakit satma kararı aldı. Ayrılma hakkı 6,06 TL.",
         "⚡ **BINHO:** Meta Mobilite Enerji, Mardin'de dev depolamalı güneş santrali (GES) kuracağını açıkladı.",
@@ -353,6 +369,7 @@ if hisse_input:
             sirket_adi = info.get('longName', f"{hisse_input} Şirket Künyesi")
             st.markdown(f"### 🦅 {sirket_adi} Detaylı Veri Terminali")
             
+            # Üst Canlı Metrikler
             term_col1, term_col2, term_col3, term_col4 = st.columns(4)
             yıllık_en_yuksek = info.get('fiftyTwoWeekHigh', df['High'].max())
             yıllık_en_dusuk = info.get('fiftyTwoWeekLow', df['Low'].min())
