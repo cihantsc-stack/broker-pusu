@@ -4,12 +4,13 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from datetime import datetime
+import timezonefinder  # Sunucu zaman dilimi yönetimi için standart kütüphaneler
+import pytz
 
 # Sayfa Yapısı
 st.set_page_config(page_title="Broker Sinyal Radarı", layout="wide")
 
-# Otomatik Yenileme: Sayfayı her 15 saniyede bir arka planda kendi kendine yeniler (Saat ve Fiyatlar Canlı Aksın)
-# Not: Eğer bu modül yüklü değilse hata vermemesi için güvenli bir try-except yapısı kurduk.
+# Otomatik Yenileme (Her 15 saniyede bir arka planda tetiklenir)
 try:
     from streamlit_autorefresh import st_autorefresh
     st_autorefresh(interval=15000, key="datarefresh")
@@ -98,8 +99,6 @@ st.markdown("""
     .news-item:last-child {
         border-bottom: none;
     }
-    
-    /* Üst Orta Saat ve Durum Kutusu */
     .time-status-box {
         background: #25252b;
         padding: 12px;
@@ -188,14 +187,16 @@ with top_col1:
         except:
             st.markdown('<div class="left-market-box">🚀 BIST 30<br><span style="font-size:20px; font-weight:bold; color:#4ade80;">16,120.50</span></div>', unsafe_allow_html=True)
 
-# 📍 2. ORTA SÜTUN (Anlık Saat ve Dinamik Piyasa Durumu)
+# 📍 2. ORTA SÜTUN (🔥 TÜRKİYE SAATİNE SABİTLENMİŞ ALAN 🔥)
 with top_col2:
-    su_an = datetime.now()
-    saat_str = su_an.strftime("%H:%M:%S")
+    # Sunucu nerede olursa olsun saati net İstanbul saat dilimine zorluyoruz
+    tr_time_zone = pytz.timezone("Europe/Istanbul")
+    su_an_tr = datetime.now(tr_time_zone)
+    saat_str = su_an_tr.strftime("%H:%M:%S")
     
-    # Çalışma saatleri kontrolü (Hafta içi 10:00 - 18:15)
-    hafta_gunu = su_an.weekday()
-    saat_dakika = su_an.hour * 100 + su_an.minute
+    # Çalışma saatleri kontrolü (Hafta içi 10:00 - 18:15 TR Saati)
+    hafta_gunu = su_an_tr.weekday()
+    saat_dakika = su_an_tr.hour * 100 + su_an_tr.minute
     
     if hafta_gunu < 5 and (1000 <= saat_dakika <= 1815):
         piyasa_durumu = "🟢 HİSSE SENEDİ PİYASASI AÇIK"
@@ -206,7 +207,7 @@ with top_col2:
         
     st.markdown(f"""
     <div class="time-status-box">
-        <span style="color:#a3a3a3; font-weight:bold; font-size:12px;">⏱️ SON GÜNCELLEME</span><br>
+        <span style="color:#a3a3a3; font-weight:bold; font-size:12px;">⏱️ SON GÜNCELLEME (TSİ)</span><br>
         <span style="font-size:24px; font-weight:900; color:#38bdf8;">{saat_str}</span><br>
         <span style="font-size:12px; font-weight:bold; color:{durum_renk};">{piyasa_durumu}</span>
     </div>
@@ -372,6 +373,90 @@ if hisse_input:
                 st.markdown(f'<div class="terminal-card">⛰️ <b>52 Haftanın En Yükseği</b><br><span style="font-size:20px; font-weight:bold; color:#f87171;">{yıllık_en_yuksek:.2f} TL</span></div>', unsafe_allow_html=True)
             with term_col4:
                 st.markdown(f'<div class="terminal-card">🕳️ <b>52 Haftanın En Düşüğü</b><br><span style="font-size:20px; font-weight:bold; color:#4ade80;">{yıllık_en_dusuk:.2f} TL</span></div>', unsafe_allow_html=True)
+
+            # ÇEKMECE 1: Bilanço ve Finansal Kalemler
+            with st.expander("📊 Temel Analiz & Detaylı Bilanço Özeti"):
+                fk = info.get('trailingPE', "N/A")
+                pddd = info.get('priceToBook', "N/A")
+                piyasa_degeri = info.get('marketCap', 0) / 1_000_000_000 if info.get('marketCap') else 0
+                net_kar = info.get('netIncomeToCommon', 0) / 1_000_000 if info.get('netIncomeToCommon') else 0
+                hasilat = info.get('totalRevenue', 0) / 1_000_000 if info.get('totalRevenue') else 0
+                ozkaynak = info.get('bookValue', 0)
+                
+                fk_yaz = f"{fk:.2f}" if isinstance(fk, (int, float)) else "Veri Yok"
+                pddd_yaz = f"{pddd:.2f}" if isinstance(pddd, (int, float)) else "Veri Yok"
+                
+                b1, b2, b3 = st.columns(3)
+                b1.metric("F/K (Fiyat Kazanç Oranı)", fk_yaz)
+                b2.metric("PD/DD (Piyasa / Defter Değeri)", pddd_yaz)
+                b3.metric("Toplam Şirket Piyasa Değeri", f"{piyasa_degeri:.2f} Milyar TL" if piyasa_degeri > 0 else "Veri Yok")
+                
+                b4, b5, b6 = st.columns(3)
+                b4.metric("Son Dönem Net Kârı", f"{net_kar:.2f} Milyon TL" if net_kar > 0 else "Veri Yok")
+                b5.metric("Toplam Yıllık Hasılat / Gelir", f"{hasilat:.2f} Milyon TL" if hasilat > 0 else "Veri Yok")
+                b6.metric("Hisse Başı Özkaynak (Kitap Değeri)", f"{ozkaynak:.2f} TL" if ozkaynak and ozkaynak > 0 else "Veri Yok")
+
+            # ÇEKMECE 2: Teknik İndikatörler ve Hareketli Ortalamalar Paneli
+            with st.expander("⚙️ Teknik Analiz: İndikatör & Ortalamalar Kombinasyonu"):
+                t_col1, t_col2 = st.columns(2)
+                
+                with t_col1:
+                    st.markdown("<h4 style='color:#60a5fa;'>📌 Hareketli Ortalamalar Trend Raporu</h4>", unsafe_allow_html=True)
+                    ort_df = df.copy()
+                    ortalamalar = [5, 10, 22, 50, 100, 200]
+                    rapor_satirlari = []
+                    for p in ortalamalar:
+                        ma_val = ort_df['Close'].rolling(window=p).mean().iloc[-1]
+                        durum = "🟢 ÜSTÜNDE (Pozitif)" if guncel_fiyat > ma_val else "🔴 ALTINDA (Negatif)"
+                        rapor_satirlari.append({
+                            "🔍 Ortalama Tipi": f"{p} Günlük Ortalama (MA{p})",
+                            "💰 Değer": f"{ma_val:.2f} TL",
+                            "🚦 Durum": durum
+                        })
+                    if rapor_satirlari:
+                        st.table(pd.DataFrame(rapor_satirlari))
+                
+                with t_col2:
+                    st.markdown("<h4 style='color:#60a5fa;'>🔮 Popüler Osilatör Sinyal Durumları</h4>", unsafe_allow_html=True)
+                    
+                    rsi_durum = "🟡 NÖTR"
+                    if rsi_son < 40: rsi_durum = "🟢 AL (Aşırı Satım)"
+                    elif rsi_son > 65: rsi_durum = "🔴 SAT (Aşırı Alım)"
+                    
+                    macd_durum = "🟢 AL (Pozitif)" if macd_son > signal_son else "🔴 SAT (Negatif)"
+                    stoch_durum = "🟢 AL (Ucuz)" if stoch_k_son < 30 else ("🔴 SAT (Şişmiş)" if stoch_k_son > 75 else "🟡 NÖTR")
+                    cci_durum = "🟢 AL" if cci_son < -100 else ("🔴 SAT" if cci_son > 100 else "🟡 NÖTR")
+                    
+                    osc_satirlari = [
+                        {"📊 Osilatör Adı": "RSI (Göreceli Güç Endeksi)", "🔢 Durum Değeri": f"{rsi_son:.2f}", "🚦 Sinyal Durumu": rsi_durum},
+                        {"📊 Osilatör Adı": "MACD Trend Çizgisi", "🔢 Durum Değeri": f"{macd_son:.2f}", "🚦 Sinyal Durumu": macd_durum},
+                        {"📊 Osilatör Adı": "Stochastic Osilatör", "🔢 Durum Değeri": f"{stoch_k_son:.2f}", "🚦 Sinyal Durumu": stoch_durum},
+                        {"📊 Osilatör Adı": "CCI (Emtia Kanal Endeksi)", "🔢 Durum Değeri": f"{cci_son:.2f}", "🚦 Sinyal Durumu": cci_durum}
+                    ]
+                    if osc_satirlari:
+                        st.table(pd.DataFrame(osc_satirlari))
+
+            # --- YAPAY ZEKA TEKNİK ANALİZ YORUMLARI ---
+            st.markdown('<div class="comment-card">', unsafe_allow_html=True)
+            st.markdown("### 🤖 Radar Yapay Zeka Analiz Notları")
+            
+            yorumlar = []
+            if rsi_son > 65:
+                yorumlar.append(f"⚠️ **RSI Değeri ({rsi_son:.1f}):** Aşırı alım bölgesine çok yakın. Hisse çok hızlı yükselmiş, buralardan girmek riskli.")
+            elif rsi_son < 40:
+                yorumlar.append(f"📊 **RSI Değeri ({rsi_son:.1f}):** Güvenli / Ucuzluk bölgesinde. Satıcıların iştahı azalmış, dipten dönüş emareleri.")
+            else:
+                yorumlar.append(f"📊 **RSI Değeri ({rsi_son:.1f}):** Dengeli bölgede, aşırılık yok.")
+
+            if guncel_fiyat > ma20:
+                yorumlar.append(f"📈 **Hareketli Ortalama:** Fiyat 20 günlük ortalamanın ({ma20:.2f} TL) üzerinde. Trend yönü yukarı yönlü pozitif.")
+            else:
+                yorumlar.append(f"📉 **Hareketli Ortalama:** Fiyat 20 günlük ortalamanın ({ma20:.2f} TL) altında. Kısa vadeli baskı devam ediyor.")
+
+            for yorum in yorumlar:
+                st.write(yorum)
+                
+            st.markdown('</div>', unsafe_allow_html=True)
 
     except Exception as e:
         st.error("Hisse analiz verileri yüklenirken bir veri uyuşmazlığı yaşandı.")
