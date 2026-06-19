@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 # Sayfa Genişliği ve Başlık
 st.set_page_config(page_title="Broker Otomatik Pusu & Karar Terminali", layout="wide")
 
-# CSS ile Görsel Özelleştirmeler
+# CSS ile Görsel Özelleştirmeler (Trafik Işıkları İçin)
 st.markdown("""
     <style>
     .stAlert {
@@ -26,7 +26,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown("# 🦅 Broker Otomatik Pusu & Karar Terminali")
-st.write("Sıfır borsa bilgisiyle net karar verin: Yapay zeka sinyalleri tarar, yönü, destek/dirençli grafikleri tek bakışta önünüze serer.")
+st.write("Sıfır borsa bilgisiyle net karar verin: Yapay zeka sinyalleri tarar, yönü, grafikleri ve emirleri tek bakışta önünüze serer.")
 st.markdown("---")
 
 # Kullanıcı Girişi
@@ -92,7 +92,7 @@ if hisse_input:
             if zirveye_uzaklik_yuzde > 15: olumlu_puan += 1
             if hacim_orani > 1.2 and yuzde_degisim > 0: olumlu_puan += 1
 
-            # --- EN ÜSTTEKİ BORSA EĞİTMENİ TRAFİK IŞIĞI VE SKOR KARTI ---
+            # --- TRAFİK IŞIĞI SİNYALİ ---
             st.markdown("### 🚦 TRAFİK IŞIĞI SİNYALİ & YAPAY ZEKA KARNESİ")
             
             if olumlu_puan >= 3:
@@ -105,49 +105,4 @@ if hisse_input:
                            f"🎯 **NE YAPMALI?** Elinizde varsa tutun ama yeni alım yapacaksanız acele etmeyin. Fiyatın 'Pusu Fiyatına' düşmesini sabırla bekleyin.")
             else:
                 st.markdown('<div class="big-signal" style="background-color: #f8d7da; color: #721c24; border: 2px solid #f5c6cb;">🔴 DUR! KESİNLİKLE GİRİLMEZ (YÜKSEK RİSK / TUZAK)</div>', unsafe_allow_html=True)
-                st.error(f"**EĞİTMEN RAPORU:** TEHLİKE! Hisse ya zirvede mal boşaltma aşamasında ya da indikatörler aşırı şişmiş. Buradan bu kağıdı alan birisi çok büyük ihtimalle terste kalır.")
-
-            # --- NET EMİR VE TALİMAT KUTUSU ---
-            st.markdown("#### 🎯 HİÇ BİLMEYENLER İÇIN NOKTA ATIŞI TALİMATLAR")
-            col_e1, col_e2, col_e3 = st.columns(3)
-            with col_e1:
-                if olumlu_puan >= 3:
-                    st.info(f"📥 **NEREDEN ALALIM?** \n\n**{guncel_fiyat:.2f} TL** seviyesinden şu an kademeli toplanabilir.")
-                elif olumlu_puan == 2:
-                    st.info(f"📥 **NEREDEN ALALIM?** \n\nŞu an alma. Fiyatın **{destek_ana:.2f} TL** pusu fiyatına inmesini bekle.")
-                else:
-                    st.info(f"📥 **NEREDEN ALALIM?** \n\n**SAKIN ALMA!** Fiyat çok şişmiş, burası intihar bölgesidir.")
-            with col_e2:
-                st.warning(f"🛡️ **KAYIP SINIRI (STOP-LESS):** \n\n**{stop_loss:.2f} TL**. Fiyat buraya düşer ve altında kalırsa inatlaşma, hemen sat çık.")
-            with col_e3:
-                st.success(f"🦅 **KÂR ALMA / ÇIKIŞ YERİ:** \n\n**{direnc_ana:.2f} TL** seviyesine geldiğinde görev tamamlanmıştır, satıp parayı cebine koy.")
-
-            st.markdown("---")
-
-            # Metrikleri Gösteren Çubuk (Termometre Mantığı)
-            st.markdown("#### 🌡️ Hisse Konum Göstergesi (Neredeyiz?)")
-            st.progress(min(max(int((guncel_fiyat - aylik_en_dusuk) / (aylik_en_yuksek - aylik_en_dusuk + 1e-9) * 100), 0), 100))
-            st.caption(f"Sol Taraf: En Düşük ({aylik_en_dusuk:.2f} TL) ---------- Şuan Buradayız ({guncel_fiyat:.2f} TL) ---------- Sağ Taraf: En Yüksek ({aylik_en_yuksek:.2f} TL)")
-
-            # --- PLOTLY DESTEK / DİRENÇ ÇİZGİLİ GRAFİK SİSTEMİ ---
-            st.markdown("---")
-            st.markdown("#### 📈 Strateji Çizgili Canlı Trend Grafiği")
-            grafik_secimi = st.radio("Grafik Periyodu Seçin:", ["1 Günlük Kapanışlar (Son 1 Ay)", "Saatlik Hareketler (Son 1 Hafta)"], horizontal=True)
-
-            # Grafik verisini hazırlama
-            if "1 Günlük" in grafik_secimi:
-                chart_df = df.tail(30)
-                title_suffix = "(Günlük Veri - 1 Ay)"
-            else:
-                chart_df = ticker.history(period="7d", interval="1h")
-                title_suffix = "(Saatlik Veri - 1 Hafta)"
-
-            if not chart_df.empty:
-                # Plotly Şekil Nesnesi Oluşturma
-                fig = go.Figure()
-
-                # Ana Fiyat Çizgisi
-                fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df['Close'], mode='lines', name='Hisse Fiyatı', line=dict(color='#1f77b4', width=3)))
-
-                # Hedef / Direnç Çizgisi (Kırmızı)
-                fig.add_shape(type="line", x0=chart_df.index[0], y0=direnc_ana, x1=chart_df.index[-1], y1=direnc_
+                st.error(f"**EĞİTMEN RAPORU:** TEHLİKE! Hisse ya zirvede mal boşaltma aşamasında ya da indikatörler aşırı şişmiş
