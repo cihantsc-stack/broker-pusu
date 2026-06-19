@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 # Sayfa Yapısı
 st.set_page_config(page_title="Broker Sinyal Radarı", layout="wide")
 
-# CSS ile Arka Planı Gri Yapma, Yazı Renklerini Okunabilir Hale Getirme
+# CSS ile Arka Planı Gri Yapma, Yazı Renklerini Okunabilir Hale Gridleme
 st.markdown("""
     <style>
     .stApp {
@@ -129,7 +129,7 @@ st.write("Borsa bilgisine ihtiyacınız yok. Yapay zeka sizin yerinize hesaplar 
 
 top_col1, top_col2 = st.columns([3, 2])
 
-# 📍 1. SOL TARAF (İşaretlediğin Büyük Üst Alan)
+# 📍 1. SOL TARAF (Endeksler)
 with top_col1:
     left_col1, left_col2 = st.columns(2)
     
@@ -151,14 +151,14 @@ with top_col1:
                 </div>
                 """, unsafe_allow_html=True)
             else:
-                st.markdown('<div class="left-market-box">🏛️ BIST 100<br><span style="color:#fbbf24;">Veri Alınamadı</span></div>', unsafe_allow_html=True)
+                st.markdown('<div class="left-market-box">🏛️ BIST 100<br><span style="color:#fbbf24;">Veri Bekleniyor</span></div>', unsafe_allow_html=True)
         except:
-            st.markdown('<div class="left-market-box">🏛️ BIST 100<br><span style="color:#f87171;">Bağlantı Hatası</span></div>', unsafe_allow_html=True)
+            st.markdown('<div class="left-market-box">🏛️ BIST 100<br><span style="color:#fbbf24;">Yüklenemedi</span></div>', unsafe_allow_html=True)
 
-    # VIOP / BIST 30 Kutusu
+    # BIST 30 Kutusu
     with left_col2:
         try:
-            vop = yf.Ticker("XU030.IS") # En kararlı endeks sembolü
+            vop = yf.Ticker("XU030.IS")
             vop_df = vop.history(period="2d")
             if not vop_df.empty and len(vop_df) >= 2:
                 vop_guncel = vop_df['Close'].iloc[-1]
@@ -173,9 +173,9 @@ with top_col1:
                 </div>
                 """, unsafe_allow_html=True)
             else:
-                st.markdown('<div class="left-market-box">🚀 BIST 30<br><span style="color:#fbbf24;">Veri Alınamadı</span></div>', unsafe_allow_html=True)
+                st.markdown('<div class="left-market-box">🚀 BIST 30<br><span style="color:#fbbf24;">Veri Bekleniyor</span></div>', unsafe_allow_html=True)
         except:
-            st.markdown('<div class="left-market-box">🚀 BIST 30<br><span style="color:#f87171;">Bağlantı Hatası</span></div>', unsafe_allow_html=True)
+            st.markdown('<div class="left-market-box">🚀 BIST 30<br><span style="color:#fbbf24;">Yüklenemedi</span></div>', unsafe_allow_html=True)
 
 # 📍 2. SAĞ TARAF (KAP & Piyasa Gündemi)
 with top_col2:
@@ -215,37 +215,37 @@ if hisse_input:
         except:
             info = {}
         
-        if df.empty:
-            st.error("Hisse kodu bulunamadı. Lütfen doğru yazdığınızdan emin olun.")
+        if df.empty or len(df) < 20:
+            st.error("Bu hisse kodu için yeterli geçmiş veri bulunamadı. Lütfen kodu kontrol edin.")
         else:
             guncel_fiyat = df['Close'].iloc[-1]
             
-            # --- TEKNİK HESAPMALAR ---
+            # --- TEKNİK HESAPLAMALAR ---
             ma20_seri = df['Close'].rolling(window=20).mean()
-            ma20 = ma20_seri.iloc[-1]
+            ma20 = ma20_seri.iloc[-1] if not ma20_seri.empty else guncel_fiyat
             
             delta = df['Close'].diff()
             gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
             loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
             rs = gain / (loss + 1e-9)
             rsi = 100 - (100 / (1 + rs))
-            rsi_son = rsi.iloc[-1]
+            rsi_son = rsi.iloc[-1] if not rsi.empty else 50
             
             exp1 = df['Close'].ewm(span=12, adjust=False).mean()
             exp2 = df['Close'].ewm(span=26, adjust=False).mean()
             macd_line = exp1 - exp2
             signal_line = macd_line.rolling(window=9).mean()
-            macd_son = macd_line.iloc[-1]
-            signal_son = signal_line.iloc[-1]
+            macd_son = macd_line.iloc[-1] if not macd_line.empty else 0
+            signal_son = signal_line.iloc[-1] if not signal_line.empty else 0
             
             low_14 = df['Low'].rolling(window=14).min()
             high_14 = df['High'].rolling(window=14).max()
             stoch_k = 100 * ((df['Close'] - low_14) / (high_14 - low_14 + 1e-9))
-            stoch_k_son = stoch_k.iloc[-1]
+            stoch_k_son = stoch_k.iloc[-1] if not stoch_k.empty else 50
             
             tp = (df['High'] + df['Low'] + df['Close']) / 3
             cci = (tp - tp.rolling(window=20).mean()) / (0.015 * tp.rolling(window=20).std() + 1e-9)
-            cci_son = cci.iloc[-1]
+            cci_son = cci.iloc[-1] if not cci.empty else 0
             
             son_ay_df = df.tail(21)
             aylik_en_yuksek = son_ay_df['High'].max()
@@ -422,7 +422,10 @@ if hisse_input:
                             "💰 Değer": f"{ma_val:.2f} TL",
                             "🚦 Durum": durum
                         })
-                    st.table(pd.DataFrame(rapor_satirlari))
+                    if rapor_satirlari:
+                        st.table(pd.DataFrame(rapor_satirlari))
+                    else:
+                        st.info("Ortalamalar hesaplanamadı.")
                 
                 with t_col2:
                     st.markdown("<h4 style='color:#60a5fa;'>🔮 Popüler Osilatör Sinyal Durumları</h4>", unsafe_allow_html=True)
@@ -441,7 +444,10 @@ if hisse_input:
                         {"📊 Osilatör Adı": "Stochastic Osilatör", "🔢 Durum Değeri": f"{stoch_k_son:.2f}", "🚦 Sinyal Durumu": stoch_durum},
                         {"📊 Osilatör Adı": "CCI (Emtia Kanal Endeksi)", "🔢 Durum Değeri": f"{cci_son:.2f}", "🚦 Sinyal Durumu": cci_durum}
                     ]
-                    st.table(pd.DataFrame(osc_satirlari))
+                    if osc_satirlari:
+                        st.table(pd.DataFrame(osc_satirlari))
+                    else:
+                        st.info("Osilatör verileri yüklenemedi.")
 
             # --- 6. ADIM: YAPAY ZEKA TEKNİK ANALİZ YORUMLARI ---
             st.markdown('<div class="comment-card">', unsafe_allow_html=True)
@@ -466,4 +472,4 @@ if hisse_input:
             st.markdown('</div>', unsafe_allow_html=True)
 
     except Exception as e:
-        st.error(f"Veriler yüklenirken bir hata oluştu: {e}")
+        st.error("Hisse analiz verileri yüklenirken bir veri uyuşmazlığı yaşandı. Lütfen başka bir kod deneyin.")
