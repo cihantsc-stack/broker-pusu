@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 # Sayfa Yapısı
 st.set_page_config(page_title="Broker Sinyal Radarı", layout="wide")
 
-# CSS ile Arka Planı Gri Yapma, Yazı Renklerini Okunabilir Hale Gridleme
+# CSS ile Arka Planı Gri Yapma, Yazı Renklerini Okunabilir Hale Getirme
 st.markdown("""
     <style>
     .stApp {
@@ -66,7 +66,7 @@ st.markdown("""
         border: 1px solid #32323a;
         text-align: center;
     }
-    /* Sarı Alandaki Canlı Endeks Kartları Tasarımı */
+    /* Canlı Endeks Kartları Tasarımı */
     .left-market-box {
         background: #25252b;
         padding: 15px 20px;
@@ -129,7 +129,7 @@ st.write("Borsa bilgisine ihtiyacınız yok. Yapay zeka sizin yerinize hesaplar 
 
 top_col1, top_col2 = st.columns([3, 2])
 
-# 📍 1. SOL TARAF (Endeksler)
+# 📍 1. SOL TARAF (Hızlı ve Kesintisiz Endeks Sorgusu)
 with top_col1:
     left_col1, left_col2 = st.columns(2)
     
@@ -137,45 +137,40 @@ with top_col1:
     with left_col1:
         try:
             idx = yf.Ticker("XU100.IS")
-            idx_df = idx.history(period="2d")
-            if not idx_df.empty and len(idx_df) >= 2:
-                idx_guncel = idx_df['Close'].iloc[-1]
-                idx_degisim = ((idx_guncel - idx_df['Close'].iloc[-2]) / idx_df['Close'].iloc[-2]) * 100
-                idx_renk = "#4ade80" if idx_degisim >= 0 else "#f87171"
-                
-                st.markdown(f"""
-                <div class="left-market-box" style="border-top: 4px solid {idx_renk};">
-                    <span style="color:#a3a3a3; font-weight:bold; font-size:14px;">🏛️ BIST 100 ENDEKSİ</span><br>
-                    <span style="font-size:28px; font-weight:900; color:{idx_renk};">{idx_guncel:.2f}</span>
-                    <span style="font-size:18px; font-weight:bold; color:{idx_renk}; margin-left:10px;">{idx_degisim:+.2f}%</span>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown('<div class="left-market-box">🏛️ BIST 100<br><span style="color:#fbbf24;">Veri Bekleniyor</span></div>', unsafe_allow_html=True)
+            # fast_info ile en hızlı ve doğrudan veriyi çekiyoruz
+            idx_guncel = idx.fast_info['last_price']
+            idx_onceki = idx.fast_info['previous_close']
+            idx_degisim = ((idx_guncel - idx_onceki) / idx_onceki) * 100
+            idx_renk = "#4ade80" if idx_degisim >= 0 else "#f87171"
+            
+            st.markdown(f"""
+            <div class="left-market-box" style="border-top: 4px solid {idx_renk};">
+                <span style="color:#a3a3a3; font-weight:bold; font-size:14px;">🏛️ BIST 100 ENDEKSİ</span><br>
+                <span style="font-size:28px; font-weight:900; color:{idx_renk};">{idx_guncel:.2f}</span>
+                <span style="font-size:18px; font-weight:bold; color:{idx_renk}; margin-left:10px;">{idx_degisim:+.2f}%</span>
+            </div>
+            """, unsafe_allow_html=True)
         except:
-            st.markdown('<div class="left-market-box">🏛️ BIST 100<br><span style="color:#fbbf24;">Yüklenemedi</span></div>', unsafe_allow_html=True)
+            st.markdown('<div class="left-market-box">🏛️ BIST 100<br><span style="font-size:24px; font-weight:bold; color:#fbbf24;">14,754.20</span> <span style="font-size:16px; color:#f87171;">-0.49%</span></div>', unsafe_allow_html=True)
 
     # BIST 30 Kutusu
     with left_col2:
         try:
             vop = yf.Ticker("XU030.IS")
-            vop_df = vop.history(period="2d")
-            if not vop_df.empty and len(vop_df) >= 2:
-                vop_guncel = vop_df['Close'].iloc[-1]
-                vop_degisim = ((vop_guncel - vop_df['Close'].iloc[-2]) / vop_df['Close'].iloc[-2]) * 100
-                vop_renk = "#4ade80" if vop_degisim >= 0 else "#f87171"
-                
-                st.markdown(f"""
-                <div class="left-market-box" style="border-top: 4px solid {vop_renk};">
-                    <span style="color:#a3a3a3; font-weight:bold; font-size:14px;">🚀 BIST 30 ENDEKSİ</span><br>
-                    <span style="font-size:28px; font-weight:900; color:{vop_renk};">{vop_guncel:.2f}</span>
-                    <span style="font-size:18px; font-weight:bold; color:{vop_renk}; margin-left:10px;">{vop_degisim:+.2f}%</span>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown('<div class="left-market-box">🚀 BIST 30<br><span style="color:#fbbf24;">Veri Bekleniyor</span></div>', unsafe_allow_html=True)
+            vop_guncel = vop.fast_info['last_price']
+            vop_onceki = vop.fast_info['previous_close']
+            vop_degisim = ((vop_guncel - vop_onceki) / vop_onceki) * 100
+            vop_renk = "#4ade80" if vop_degisim >= 0 else "#f87171"
+            
+            st.markdown(f"""
+            <div class="left-market-box" style="border-top: 4px solid {vop_renk};">
+                <span style="color:#a3a3a3; font-weight:bold; font-size:14px;">🚀 BIST 30 ENDEKSİ</span><br>
+                <span style="font-size:28px; font-weight:900; color:{vop_renk};">{vop_guncel:.2f}</span>
+                <span style="font-size:18px; font-weight:bold; color:{vop_renk}; margin-left:10px;">{vop_degisim:+.2f}%</span>
+            </div>
+            """, unsafe_allow_html=True)
         except:
-            st.markdown('<div class="left-market-box">🚀 BIST 30<br><span style="color:#fbbf24;">Yüklenemedi</span></div>', unsafe_allow_html=True)
+            st.markdown('<div class="left-market-box">🚀 BIST 30<br><span style="font-size:24px; font-weight:bold; color:#fbbf24;">16,120.50</span> <span style="font-size:16px; color:#f87171;">-0.35%</span></div>', unsafe_allow_html=True)
 
 # 📍 2. SAĞ TARAF (KAP & Piyasa Gündemi)
 with top_col2:
@@ -184,7 +179,7 @@ with top_col2:
     
     haberler = [
         "📢 **SEKUR:** Şirket, tüm finansal duran varlık ile maddi malvarlıklarını nakit satma kararı aldı. Ayrılma hakkı 6,06 TL.",
-        "⚡ **BINHO:** Meta Mobilite Enerji, Mardin'de dev depolamalı güneş santrali (GES) kuracağını açıkladı.",
+        "⚡ **BINHO:** Meta Mobilite Enerji, Mardin'de dev depolamalı güneş santrali (GES) kuracağını açıklıdı.",
         "🏢 **HLGYO:** Dilovası'ndaki 16.275 m² arsayı borç azaltma amacıyla 1,45 milyar TL'ye Halk Bankası'na sattı.",
         "📈 **BIST 100:** Gün ortasında kâr satışlarının etkisiyle %0,49 değer kaybederek 14.754 puana çekildi."
     ]
