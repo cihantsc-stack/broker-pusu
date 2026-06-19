@@ -7,13 +7,12 @@ import numpy as np
 st.set_page_config(page_title="Broker Otomatik Pusu & Karar Terminali", layout="wide")
 
 st.markdown("# 🦅 Broker Otomatik Pusu & Karar Terminali")
-st.write("Sadece hisse kodunu yazın; fiyat, teknik göstergeler, kurumsal oyuncular ve pusu seviyeleri otomatik hesaplansın.")
+st.write("Sadece hisse kodunu yazın; fiyat, teknik göstergeler, balina/hacim analizi ve pusu seviyeleri otomatik hesaplansın.")
 st.markdown("---")
 
 # Kullanıcı Girişi
 hisse_input = st.text_input("Hisse Kodu Yazın (Örn: ASELS, THYAO, PASEU, BASCM):", "ASELS").upper().strip()
 
-# Türkiye borsası için sonuna .IS ekleme kontrolü
 if hisse_input and not hisse_input.endswith(".IS"):
     hisse_ticker = f"{hisse_input}.IS"
 else:
@@ -54,6 +53,21 @@ if hisse_input:
             aylik_en_dusuk = son_ay_df['Low'].min()
             zirveye_uzaklik_yuzde = ((aylik_en_yuksek - guncel_fiyat) / aylik_en_yuksek) * 100
             
+            # --- YENİ BÖLÜM: OTOMATİK HACİM VE BALİNA TAKİBİ ---
+            # Son 10 günün hacim ortalaması
+            ort_hacim_10gun = df['Volume'].tail(10).mean()
+            hacim_orani = guncel_hacim / (ort_hacim_10gun + 1e-9)
+            
+            if hacim_orani > 1.5 and yuzde_degisim > 0:
+                balina_notu = "🐋 GÜÇLÜ OYUNCU GİRİŞİ! Hacim son 10 günün ortalamasını patlatmış ve fiyat yukarı gidiyor. Büyük oyuncular tahtada mal topluyor olabilir."
+                balina_durum = "🟢 Para Girişi Var"
+            elif hacim_orani > 1.5 and yuzde_degisim < 0:
+                balina_notu = "⚠️ OYUNCU ÇIKIŞI / MAL BOŞALTMA! Yüksek hacimle fiyat aşağı basılıyor. Büyük oyuncular mal çıkıyor olabilir, dikkatli ol."
+                balina_durum = "🔴 Para Çıkışı Var"
+            else:
+                balina_notu = "💤 YATAY/HACİMSİZ TAHTA. Büyük oyuncular şu an tahtada agresif bir işlem yapmıyor, küçük yatırımcı dönüyor."
+                balina_durum = "🟡 Sakin / Rutin"
+
             # Strateji Algoritması
             destek_ana = aylik_en_dusuk * 1.02
             direnc_ana = aylik_en_yuksek
@@ -61,7 +75,7 @@ if hisse_input:
             
             if guncel_fiyat >= direnc_ana * 0.97:
                 tahta_durumu = "🚨 Zirve / Tepede"
-                strateji = "🚨 DİKKATLİ OL / ALMA! Hisse aylık zirve direncine dayanmış durumda. Düzeltme bekle."
+                strateji = "🚨 DİKKATLİ OL! Hisse aylık zirve direncine dayanmış durumda. Düzeltme bekle."
             elif guncel_fiyat <= destek_ana * 1.03:
                 tahta_durumu = "🏹 Pusu Bölgesinde"
                 strateji = "🏹 PUSUDA AV ZAMANI! Hisse aylık dip destek seviyelerine yakın. İdeal bölge."
@@ -97,38 +111,12 @@ if hisse_input:
                 st.write(f"**En Düşük (Dip):** {aylik_en_dusuk:.2f} TL")
                 st.info(f"Hisse aylık zirvesinden **%{zirveye_uzaklik_yuzde:.2f}** aşağıda işlem görüyor.")
                 
-                # --- OTO OYUNCU / FON DAĞILIMI BÖLÜMÜ ---
+                # --- GÜNCELLENEN OTOMATİK BÖLÜM ---
                 st.markdown("---")
-                st.subheader("👥 Hissedeki Büyük Oyuncular & Kurumsal Fonlar")
-                
-                try:
-                    # Yahoo'dan kurumsal yatırımcıları çekiyoruz
-                    holders = ticker.institutional_holders
-                    
-                    if holders is not None and not holders.empty:
-                        # Tablo sütunlarını Türkçeleştirip düzenliyoruz
-                        holders_df = holders.copy()
-                        if 'Holder' in holders_df.columns and 'pctHeld' in holders_df.columns:
-                            holders_df['pctHeld'] = holders_df['pctHeld'] * 100 # Yüzde formatına çevir
-                            holders_df.columns = ['Büyük Oyuncu / Kurumsal Fon', 'Hisse Adedi', 'Tarih', 'Pay Yüzdesi (%)']
-                            st.dataframe(holders_df[['Büyük Oyuncu / Kurumsal Fon', 'Pay Yüzdesi (%)']], hide_index=True, use_container_width=True)
-                        else:
-                            st.dataframe(holders.head(5), use_container_width=True)
-                    else:
-                        # Eğer kurumsal fon yoksa büyük ortakları (mutual fund) dene
-                        mf_holders = ticker.mutualfund_holders
-                        if mf_holders is not None and not mf_holders.empty:
-                            mf_df = mf_holders.copy()
-                            if 'Holder' in mf_df.columns and 'pctHeld' in mf_df.columns:
-                                mf_df['pctHeld'] = mf_df['pctHeld'] * 100
-                                mf_df.columns = ['Yatırım Fonu / Ortak', 'Hisse Adedi', 'Tarih', 'Pay Yüzdesi (%)']
-                                st.dataframe(mf_df[['Yatırım Fonu / Ortak', 'Pay Yüzdesi (%)']], hide_index=True, use_container_width=True)
-                            else:
-                                st.dataframe(mf_holders.head(5), use_container_width=True)
-                        else:
-                            st.info("ℹ️ Bu tahta için halka açık kurumsal büyük fon kırılımı bulunamadı (Genelde küçük tahtalarda boş döner).")
-                except Exception as holder_err:
-                    st.info("ℹ️ Büyük kurumsal fon verisi şu an çekilemedi, ana tahtalarda otomatik listelenecektir.")
+                st.subheader("👥 Otomatic Hacim & Oyuncu Akış Analizi")
+                st.write(f"**Tahta Hacim Durumu:** {balina_durum}")
+                st.write(f"**Günlük Hacim / 10 Günlük Ortalama Hacim:** %{hacim_orani*100:.1f}")
+                st.info(balina_notu)
 
             with sag_kolon:
                 st.subheader("🎯 Otomatik Oyun Planı Raporu")
@@ -139,11 +127,11 @@ if hisse_input:
                 
                 st.markdown(f"##### 📋 {vade_turu} İçin Broker Notu")
                 if vade_turu == "Kısa Vade (Trade)":
-                    st.warning("⚠️ **Trade Notu:** RSI seviyesine ve MA20 ortalamasına sadık kal. Stop-loss altında saatlik kapanışta nakde geç.")
+                    st.warning("⚠️ **Trade Notu:** RSI seviyesine, hacim patlamasına ve MA20 ortalamasına sadık kal. Stop-loss altında nakde geç.")
                 elif vade_turu == "Orta Vade":
-                    st.info("📅 **Orta Vade Notu:** MA50 ana kalendir. Pusu fiyatına yakın kademeli maliyetlenilebilir.")
+                    st.info("📅 **Orta Vade Notu:** MA50 ana kalendir. Hacimli kırılımlarda pusu fiyatına yakın kademeli maliyetlenilebilir.")
                 else:
-                    st.success("💎 **Uzun Vade Notu:** Kısa vadeli fiyat dalgalanmalarını önemseme. Aylık dip bölgeleri toplama alanıdır.")
+                    st.success("💎 **Uzun Vade Notu:** Kısa vadeli fiyat dalgalanmalarını ve günlük hacim çıkışlarını önemseme. Aylık dip bölgeleri toplama alanıdır.")
 
     except Exception as e:
         st.error(f"Sistem hesaplama yaparken bir hata oluştu: {e}")
