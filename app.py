@@ -59,6 +59,13 @@ st.markdown("""
         border: 1px dashed #4b5563;
         margin-top: 15px;
     }
+    .terminal-card {
+        background: #25252b;
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid #32323a;
+        text-align: center;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -79,6 +86,7 @@ if hisse_input:
         # Veri Çekme
         ticker = yf.Ticker(hisse_ticker)
         df = ticker.history(period="1y")
+        info = ticker.info
         
         if df.empty:
             st.error("Hisse kodu bulunamadı. Lütfen doğru yazdığınızdan emin olun.")
@@ -177,7 +185,7 @@ if hisse_input:
                 decreasing_fillcolor='#ef4444'
             ))
             
-            # Çizgiler ve Sabit Etiketler
+            # Çizgiler ve Etiketler
             fig.add_shape(type="line", x0=chart_df['Tarih_Str'].iloc[0], y0=direnc_ana, x1=chart_df['Tarih_Str'].iloc[-1], y1=direnc_ana, line=dict(color="#ef4444", width=2.5, dash="dash"))
             fig.add_annotation(x=chart_df['Tarih_Str'].iloc[-1], y=direnc_ana, text=f"  Hedef: {direnc_ana:.2f} TL", showarrow=False, xanchor="left", font=dict(color="#ef4444", size=12, family="Arial-Bold"))
 
@@ -203,27 +211,74 @@ if hisse_input:
             )
             st.plotly_chart(fig, use_container_width=True)
 
-            # --- 4. ADIM: EL YAZISI ŞEMAYA GÖRE GRAFİK OKUMA KILAVUZU ---
+            # --- 4. ADIM: GRAFİK OKUMA KILAVUZU ---
             st.markdown('<div class="guide-card">', unsafe_allow_html=True)
             st.markdown("### 📖 Grafik Nasıl Okunur? (Kılavuz)")
-            
-            st.markdown(f"1️⃣ **🔴 Hedef Çizgisi ({direnc_ana:.2f} TL):** Hisse yükseldiğinde kâr alıp çıkacağımız, satıcıların güçlü olduğu tepe bölgesidir.")
-            st.markdown(f"2️⃣ **🔵 Anlık Fiyat Çizgisi ({guncel_fiyat:.2f} TL):** Hissenin şu an pazarda işlem gördüğü anlık değeridir. Mumların bittiği yeri gösterir.")
-            st.markdown(f"3️⃣ **🟡 Pusu Çizgisi ({destek_ana:.2f} TL):** Hissenin geçmişte alıcı bulduğu, bizim de pusuya yatıp alım yapacağımız en güvenli dip bölgesidir.")
-            st.markdown(f"4️⃣ **🟢 Stop Çizgisi ({stop_loss:.2f} TL):** İşler ters giderse, daha büyük zarar etmemek için pozisyonu kapatıp kaçacağımız emniyet kemeridir.")
-            
-            # Dinamik Kılavuz Özeti
-            uzaklik_notu = ""
-            if guncel_fiyat > destek_ana:
-                fark_yuzde = ((guncel_fiyat - destek_ana) / destek_ana) * 100
-                uzaklik_notu = f"Mavi anlık fiyat çizgisi, sarı pusu çizgisinin **%{fark_yuzde:.1f}** üzerinde duruyor."
-            else:
-                uzaklik_notu = "Mavi anlık fiyat çizgisi pusu seviyesinin altına sarkmış durumda."
-                
-            st.info(f"💡 **Mevcut Konum Özeti:** {uzaklik_notu} Çizgiler birbirine yaklaştıkça alım fırsatı doğar, kırmızı tepeye yaklaştıkça risk artar.")
+            st.markdown(f"1️⃣ **🔴 Hedef Çizgisi ({direnc_ana:.2f} TL):** Hisse yükseldiğinde kâr alıp çıkacağımız tepe bölgesidir.")
+            st.markdown(f"2️⃣ **🔵 Anlık Fiyat Çizgisi ({guncel_fiyat:.2f} TL):** Hissenin şu an pazarda işlem gördüğü anlık değeridir.")
+            st.markdown(f"3️⃣ **🟡 Pusu Çizgisi ({destek_ana:.2f} TL):** Bizim de pusuya yatıp alım yapacağımız en güvenli dip bölgesidir.")
+            st.markdown(f"4️⃣ **🟢 Stop Çizgisi ({stop_loss:.2f} TL):** Daha büyük zarar etmemek için pozisyonu kapatıp kaçacağımız emniyet kemeridir.")
             st.markdown('</div>', unsafe_allow_html=True)
 
-            # --- 5. ADIM: YAPAY ZEKA TEKNİK ANALİZ YORUMLARI ---
+            # --- 5. ADIM: TELEGRAM VERİ TERMİNALİ MANTIĞI (SAYFA ALTI EKLEMELERİ) ---
+            st.markdown("---")
+            sirket_adi = info.get('longName', f"{hisse_input} Şirket Künyesi")
+            st.markdown(f"### 🦅 {sirket_adi} Veri Terminali")
+            
+            # Ufak Bilgi Kartları (Künye ve Değişimler)
+            term_col1, term_col2, term_col3, term_col4 = st.columns(4)
+            
+            yıllık_en_yuksek = info.get('fiftyTwoWeekHigh', df['High'].max())
+            yıllık_en_dusuk = info.get('fiftyTwoWeekLow', df['Low'].min())
+            gunluk_degisim = ((guncel_fiyat - df['Open'].iloc[-1]) / df['Open'].iloc[-1]) * 100
+            
+            with term_col1:
+                st.markdown(f'<div class="terminal-card">💡 <b style="color:#b3b3b3;">Günlük Kapanış</b><br><span style="font-size:20px; font-weight:bold; color:#60a5fa;">{guncel_fiyat:.2f} TL</span></div>', unsafe_allow_html=True)
+            with term_col2:
+                renk = "#4ade80" if gunluk_degisim >= 0 else "#f87171"
+                st.markdown(f'<div class="terminal-card">📈 <b style="color:#b3b3b3;">Günlük Değişim</b><br><span style="font-size:20px; font-weight:bold; color:{renk};">{gunluk_degisim:+.2f}%</span></div>', unsafe_allow_html=True)
+            with term_col3:
+                st.markdown(f'<div class="terminal-card">⛰️ <b style="color:#b3b3b3;">52 Haftanın Zirvesi</b><br><span style="font-size:18px; font-weight:bold; color:#ef4444;">{yıllık_en_yuksek:.2f} TL</span></div>', unsafe_allow_html=True)
+            with term_col4:
+                st.markdown(f'<div class="terminal-card">🕳️ <b style="color:#b3b3b3;">52 Haftanın Dibi</b><br><span style="font-size:18px; font-weight:bold; color:#22c55e;">{yıllık_en_dusuk:.2f} TL</span></div>', unsafe_allow_html=True)
+
+            # ÇEKMECE 1: Temel Analiz ve Bilanço Verileri
+            with st.expander("📊 Temel Analiz & Bilanço Özet Verileri"):
+                fk = info.get('trailingPE', "N/A")
+                pddd = info.get('priceToBook', "N/A")
+                piyasa_degeri = info.get('marketCap', 0) / 1_000_000_000 # Milyar TL cinsinden
+                net_kar = info.get('netIncomeToCommon', 0) / 1_000_000 # Milyon TL cinsinden
+                
+                fk_yaz = f"{fk:.2f}" if isinstance(fk, (int, float)) else "Veri Yok"
+                pddd_yaz = f"{pddd:.2f}" if isinstance(pddd, (int, float)) else "Veri Yok"
+                
+                b1, b2, b3, b4 = st.columns(4)
+                b1.metric("F/K (Fiyat Kazanç)", fk_yaz)
+                b2.metric("PD/DD (Piyasa/Defter)", pddd_yaz)
+                b3.metric("Piyasa Değeri", f"{piyasa_degeri:.2f} Milyar TL" if piyasa_degeri > 0 else "Veri Yok")
+                b4.metric("Dönem Net Kârı", f"{net_kar:.2f} Milyon TL" if net_kar > 0 else "Veri Yok")
+                st.caption("Not: Bilanço ve temel rasyolar son açıklanan resmi finansal tablolardan dinamik olarak çekilmektedir.")
+
+            # ÇEKMECE 2: Teknik Ortalamalar Tablosu
+            with st.expander("⚙️ Teknik Hareketli Ortalamalar Raporu"):
+                # Farklı periyotlardaki ortalamaları hesaplama
+                ort_df = df.copy()
+                ortalamalar = [5, 10, 22, 50, 100, 200]
+                rapor_satirlari = []
+                
+                for p in ortalamalar:
+                    ma_val = ort_df['Close'].rolling(window=p).mean().iloc[-1]
+                    durum = "🟢 ÜSTÜNDE (Pozitif)" if guncel_fiyat > ma_val else "🔴 ALTINDA (Negatif)"
+                    rapor_satirlari.append({
+                        "🔍 Periyot / Ortalama": f"{p} Günlük Hareketli Ortalama (MA{p})",
+                        "💰 Ortalama Değer": f"{ma_val:.2f} TL",
+                        "🚦 Hissenin Durumu": durum
+                    })
+                
+                rapor_tablosu = pd.DataFrame(rapor_satirlari)
+                st.table(rapor_tablosu)
+                
+            # --- 6. ADIM: YAPAY ZEKA TEKNİK ANALİZ YORUMLARI ---
             st.markdown('<div class="comment-card">', unsafe_allow_html=True)
             st.markdown("### 🤖 Radar Yapay Zeka Analiz Notları")
             
@@ -239,11 +294,6 @@ if hisse_input:
                 yorumlar.append(f"📈 **Hareketli Ortalama:** Fiyat 20 günlük ortalamanın ({ma20:.2f} TL) üzerinde. Trend yönü yukarı yönlü pozitif.")
             else:
                 yorumlar.append(f"📉 **Hareketli Ortalama:** Fiyat 20 günlük ortalamanın ({ma20:.2f} TL) altında. Kısa vadeli baskı devam ediyor.")
-
-            if zirveye_uzaklik > 15:
-                yorumlar.append(f"🎯 **Zirve İskontosu:** Hisse son 1 ayın en yüksek seviyesine göre %{zirveye_uzaklik:.1f} aşağıda. Yeterince iskonto sağlamış durumda.")
-            else:
-                yorumlar.append(f"🚨 **Zirve İskontosu:** Hisse zirvesine sadece %{zirveye_uzaklik:.1f} uzaklıkta. Düzeltme riskini artırır.")
 
             for yorum in yorumlar:
                 st.write(yorum)
