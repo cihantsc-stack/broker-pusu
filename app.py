@@ -4,8 +4,13 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from datetime import datetime
-import timezonefinder  # Sunucu zaman dilimi yönetimi için standart kütüphaneler
-import pytz
+
+# Bulut sunucusunda pytz kütüphanesi yüklenirken hata oluşma ihtimaline karşı güvenli import yapısı
+try:
+    import pytz
+    has_pytz = True
+except ImportError:
+    has_pytz = False
 
 # Sayfa Yapısı
 st.set_page_config(page_title="Broker Sinyal Radarı", layout="wide")
@@ -187,11 +192,16 @@ with top_col1:
         except:
             st.markdown('<div class="left-market-box">🚀 BIST 30<br><span style="font-size:20px; font-weight:bold; color:#4ade80;">16,120.50</span></div>', unsafe_allow_html=True)
 
-# 📍 2. ORTA SÜTUN (🔥 TÜRKİYE SAATİNE SABİTLENMİŞ ALAN 🔥)
+# 📍 2. ORTA SÜTUN (Zaman Dilimi Yönetimi)
 with top_col2:
-    # Sunucu nerede olursa olsun saati net İstanbul saat dilimine zorluyoruz
-    tr_time_zone = pytz.timezone("Europe/Istanbul")
-    su_an_tr = datetime.now(tr_time_zone)
+    if has_pytz:
+        tr_time_zone = pytz.timezone("Europe/Istanbul")
+        su_an_tr = datetime.now(tr_time_zone)
+    else:
+        # Eğer sunucuda pytz yüklenirken beklenmedik bir durum olursa manuel olarak UTC+3 ekle
+        from datetime import timedelta
+        su_an_tr = datetime.utcnow() + timedelta(hours=3)
+        
     saat_str = su_an_tr.strftime("%H:%M:%S")
     
     # Çalışma saatleri kontrolü (Hafta içi 10:00 - 18:15 TR Saati)
@@ -396,7 +406,7 @@ if hisse_input:
                 b5.metric("Toplam Yıllık Hasılat / Gelir", f"{hasilat:.2f} Milyon TL" if hasilat > 0 else "Veri Yok")
                 b6.metric("Hisse Başı Özkaynak (Kitap Değeri)", f"{ozkaynak:.2f} TL" if ozkaynak and ozkaynak > 0 else "Veri Yok")
 
-            # ÇEKMECE 2: Teknik İndikatörler ve Hareketli Ortalamalar Paneli
+            # ÇEKMECE 2: Teknik Paneli
             with st.expander("⚙️ Teknik Analiz: İndikatör & Ortalamalar Kombinasyonu"):
                 t_col1, t_col2 = st.columns(2)
                 
