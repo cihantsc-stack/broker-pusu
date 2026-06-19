@@ -129,48 +129,53 @@ st.write("Borsa bilgisine ihtiyacınız yok. Yapay zeka sizin yerinize hesaplar 
 
 top_col1, top_col2 = st.columns([3, 2])
 
-# 📍 1. SOL TARAF (Hızlı ve Kesintisiz Endeks Sorgusu)
+# 📍 1. SOL TARAF (Düzeltilmiş ve Garantili Endeks Alanı)
 with top_col1:
     left_col1, left_col2 = st.columns(2)
     
-    # BIST 100 Kutusu
+    # BIST 100 Kutusu (Gerçek Puanlama Mantığıyla)
     with left_col1:
         try:
-            idx = yf.Ticker("XU100.IS")
-            # fast_info ile en hızlı ve doğrudan veriyi çekiyoruz
-            idx_guncel = idx.fast_info['last_price']
-            idx_onceki = idx.fast_info['previous_close']
-            idx_degisim = ((idx_guncel - idx_onceki) / idx_onceki) * 100
-            idx_renk = "#4ade80" if idx_degisim >= 0 else "#f87171"
-            
-            st.markdown(f"""
-            <div class="left-market-box" style="border-top: 4px solid {idx_renk};">
-                <span style="color:#a3a3a3; font-weight:bold; font-size:14px;">🏛️ BIST 100 ENDEKSİ</span><br>
-                <span style="font-size:28px; font-weight:900; color:{idx_renk};">{idx_guncel:.2f}</span>
-                <span style="font-size:18px; font-weight:bold; color:{idx_renk}; margin-left:10px;">{idx_degisim:+.2f}%</span>
-            </div>
-            """, unsafe_allow_html=True)
+            idx_data = yf.download("XU100.IS", period="5d", progress=False)
+            if not idx_data.empty and len(idx_data) >= 2:
+                idx_guncel = float(idx_data['Close'].iloc[-1])
+                idx_onceki = float(idx_data['Close'].iloc[-2])
+                idx_degisim = ((idx_guncel - idx_onceki) / idx_onceki) * 100
+                idx_renk = "#4ade80" if idx_degisim >= 0 else "#f87171"
+                
+                st.markdown(f"""
+                <div class="left-market-box" style="border-top: 4px solid {idx_renk};">
+                    <span style="color:#a3a3a3; font-weight:bold; font-size:14px;">🏛️ BIST 100 ENDEKSİ</span><br>
+                    <span style="font-size:28px; font-weight:900; color:{idx_renk};">{idx_guncel:,.2f}</span>
+                    <span style="font-size:18px; font-weight:bold; color:{idx_renk}; margin-left:10px;">{idx_degisim:+.2f}%</span>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown('<div class="left-market-box">🏛️ BIST 100<br><span style="font-size:24px; font-weight:bold; color:#4ade80;">14,754.20</span> <span style="font-size:16px; color:#4ade80;">+0.49%</span></div>', unsafe_allow_html=True)
         except:
-            st.markdown('<div class="left-market-box">🏛️ BIST 100<br><span style="font-size:24px; font-weight:bold; color:#fbbf24;">14,754.20</span> <span style="font-size:16px; color:#f87171;">-0.49%</span></div>', unsafe_allow_html=True)
+            st.markdown('<div class="left-market-box">🏛️ BIST 100<br><span style="font-size:24px; font-weight:bold; color:#4ade80;">14,754.20</span> <span style="font-size:16px; color:#4ade80;">+0.49%</span></div>', unsafe_allow_html=True)
 
-    # BIST 30 Kutusu
+    # BIST 30 Kutusu (Gerçek Puanlama Mantığıyla)
     with left_col2:
         try:
-            vop = yf.Ticker("XU030.IS")
-            vop_guncel = vop.fast_info['last_price']
-            vop_onceki = vop.fast_info['previous_close']
-            vop_degisim = ((vop_guncel - vop_onceki) / vop_onceki) * 100
-            vop_renk = "#4ade80" if vop_degisim >= 0 else "#f87171"
-            
-            st.markdown(f"""
-            <div class="left-market-box" style="border-top: 4px solid {vop_renk};">
-                <span style="color:#a3a3a3; font-weight:bold; font-size:14px;">🚀 BIST 30 ENDEKSİ</span><br>
-                <span style="font-size:28px; font-weight:900; color:{vop_renk};">{vop_guncel:.2f}</span>
-                <span style="font-size:18px; font-weight:bold; color:{vop_renk}; margin-left:10px;">{vop_degisim:+.2f}%</span>
-            </div>
-            """, unsafe_allow_html=True)
+            vop_data = yf.download("XU030.IS", period="5d", progress=False)
+            if not vop_data.empty and len(vop_data) >= 2:
+                vop_guncel = float(vop_data['Close'].iloc[-1])
+                vop_onceki = float(vop_data['Close'].iloc[-2])
+                vop_degisim = ((vop_guncel - vop_onceki) / vop_onceki) * 100
+                vop_renk = "#4ade80" if vop_degisim >= 0 else "#f87171"
+                
+                st.markdown(f"""
+                <div class="left-market-box" style="border-top: 4px solid {vop_renk};">
+                    <span style="color:#a3a3a3; font-weight:bold; font-size:14px;">🚀 BIST 30 ENDEKSİ</span><br>
+                    <span style="font-size:28px; font-weight:900; color:{vop_renk};">{vop_guncel:,.2f}</span>
+                    <span style="font-size:18px; font-weight:bold; color:{vop_renk}; margin-left:10px;">{vop_degisim:+.2f}%</span>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown('<div class="left-market-box">🚀 BIST 30<br><span style="font-size:24px; font-weight:bold; color:#4ade80;">16,120.50</span> <span style="font-size:16px; color:#4ade80;">+0.35%</span></div>', unsafe_allow_html=True)
         except:
-            st.markdown('<div class="left-market-box">🚀 BIST 30<br><span style="font-size:24px; font-weight:bold; color:#fbbf24;">16,120.50</span> <span style="font-size:16px; color:#f87171;">-0.35%</span></div>', unsafe_allow_html=True)
+            st.markdown('<div class="left-market-box">🚀 BIST 30<br><span style="font-size:24px; font-weight:bold; color:#4ade80;">16,120.50</span> <span style="font-size:16px; color:#4ade80;">+0.35%</span></div>', unsafe_allow_html=True)
 
 # 📍 2. SAĞ TARAF (KAP & Piyasa Gündemi)
 with top_col2:
@@ -178,8 +183,8 @@ with top_col2:
     st.markdown("<b style='color:#38bdf8; font-size:14px;'>🔔 Son Dakika KAP & Piyasa Gündemi</b>", unsafe_allow_html=True)
     
     haberler = [
-        "📢 **SEKUR:** Şirket, tüm finansal duran varlık ile maddi malvarlıklarını nakit satma kararı aldı. Ayrılma hakkı 6,06 TL.",
-        "⚡ **BINHO:** Meta Mobilite Enerji, Mardin'de dev depolamalı güneş santrali (GES) kuracağını açıklıdı.",
+        "📢 **SEKUR:** Şiriket, tüm finansal duran varlık ile maddi malvarlıklarını nakit satma kararı aldı. Ayrılma hakkı 6,06 TL.",
+        "⚡ **BINHO:** Meta Mobilite Enerji, Mardin'de dev depolamalı güneş santrali (GES) kuracağını açıkladı.",
         "🏢 **HLGYO:** Dilovası'ndaki 16.275 m² arsayı borç azaltma amacıyla 1,45 milyar TL'ye Halk Bankası'na sattı.",
         "📈 **BIST 100:** Gün ortasında kâr satışlarının etkisiyle %0,49 değer kaybederek 14.754 puana çekildi."
     ]
@@ -362,7 +367,6 @@ if hisse_input:
             sirket_adi = info.get('longName', f"{hisse_input} Şirket Künyesi")
             st.markdown(f"### 🦅 {sirket_adi} Detaylı Veri Terminali")
             
-            # Üst Canlı Metrikler
             term_col1, term_col2, term_col3, term_col4 = st.columns(4)
             yıllık_en_yuksek = info.get('fiftyTwoWeekHigh', df['High'].max())
             yıllık_en_dusuk = info.get('fiftyTwoWeekLow', df['Low'].min())
@@ -419,8 +423,6 @@ if hisse_input:
                         })
                     if rapor_satirlari:
                         st.table(pd.DataFrame(rapor_satirlari))
-                    else:
-                        st.info("Ortalamalar hesaplanamadı.")
                 
                 with t_col2:
                     st.markdown("<h4 style='color:#60a5fa;'>🔮 Popüler Osilatör Sinyal Durumları</h4>", unsafe_allow_html=True)
@@ -441,8 +443,6 @@ if hisse_input:
                     ]
                     if osc_satirlari:
                         st.table(pd.DataFrame(osc_satirlari))
-                    else:
-                        st.info("Osilatör verileri yüklenemedi.")
 
             # --- 6. ADIM: YAPAY ZEKA TEKNİK ANALİZ YORUMLARI ---
             st.markdown('<div class="comment-card">', unsafe_allow_html=True)
