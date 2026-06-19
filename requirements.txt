@@ -1,1 +1,3 @@
-streamlit==1.58.0`r`nyfinance==1.4.1`r`npandas==3.0.3
+streamlit
+yfinance
+pandas
