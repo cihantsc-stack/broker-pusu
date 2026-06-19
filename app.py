@@ -138,44 +138,57 @@ if hisse_input:
                 st.caption("Hisse bu fiyata geldiğinde kârı cebine koy.")
                 st.markdown('</div>', unsafe_allow_html=True)
 
-            # --- 3. ADIM: GECE MODUNA UYUMLU MUM GRAFİĞİ ---
+            # --- 3. ADIM: EKSİKSİZ, DOLGUN VE PROFESYONEL MUM GRAFİĞİ ---
             st.markdown("---")
             st.markdown("### 📈 Strateji Haritası (Son 1 Ay - Günlük Mumlar)")
             
-            chart_df = df.tail(30)
+            chart_df = df.tail(30).copy()
+            
+            # Plotly'nin tarih eksenini stringe çevirerek hafta sonu boşluklarını tamamen yok ediyoruz
+            chart_df['Tarih_Str'] = chart_df.index.strftime('%d-%m-%Y')
+            
             fig = go.Figure()
             
+            # Dolgun Mum Verisi
             fig.add_trace(go.Candlestick(
-                x=chart_df.index,
+                x=chart_df['Tarih_Str'],
                 open=chart_df['Open'],
                 high=chart_df['High'],
                 low=chart_df['Low'],
                 close=chart_df['Close'],
                 name='Hisse Mumları',
                 increasing_line_color='#22c55e',
-                decreasing_line_color='#ef4444'
+                increasing_fillcolor='#22c55e',
+                decreasing_line_color='#ef4444',
+                decreasing_fillcolor='#ef4444'
             ))
             
-            fig.add_shape(type="line", x0=chart_df.index[0], y0=direnc_ana, x1=chart_df.index[-1], y1=direnc_ana, line=dict(color="#ef4444", width=2, dash="dash"))
-            fig.add_annotation(x=chart_df.index[-1], y=direnc_ana, text=f"Hedef: {direnc_ana:.2f} TL", showarrow=False, xshift=45, yshift=0, font=dict(color="#ef4444", size=11, family="Arial-Bold"))
+            # 🔴 Hedef / Direnç Çizgisi ve Sabit Etiketi
+            fig.add_shape(type="line", x0=chart_df['Tarih_Str'].iloc[0], y0=direnc_ana, x1=chart_df['Tarih_Str'].iloc[-1], y1=direnc_ana, line=dict(color="#ef4444", width=2.5, dash="dash"))
+            fig.add_annotation(x=chart_df['Tarih_Str'].iloc[-1], y=direnc_ana, text=f"  Hedef: {direnc_ana:.2f} TL", showarrow=False, xanchor="left", font=dict(color="#ef4444", size=12, family="Arial-Bold"))
 
-            fig.add_shape(type="line", x0=chart_df.index[0], y0=destek_ana, x1=chart_df.index[-1], y1=destek_ana, line=dict(color="#fbbf24", width=2, dash="dash"))
-            fig.add_annotation(x=chart_df.index[-1], y=destek_ana, text=f"Pusu: {destek_ana:.2f} TL", showarrow=False, xshift=45, yshift=0, font=dict(color="#fbbf24", size=11, family="Arial-Bold"))
+            # 🟡 Pusu / Destek Çizgisi ve Sabit Etiketi
+            fig.add_shape(type="line", x0=chart_df['Tarih_Str'].iloc[0], y0=destek_ana, x1=chart_df['Tarih_Str'].iloc[-1], y1=destek_ana, line=dict(color="#fbbf24", width=2.5, dash="dash"))
+            fig.add_annotation(x=chart_df['Tarih_Str'].iloc[-1], y=destek_ana, text=f"  Pusu: {destek_ana:.2f} TL", showarrow=False, xanchor="left", font=dict(color="#fbbf24", size=12, family="Arial-Bold"))
 
-            fig.add_shape(type="line", x0=chart_df.index[0], y0=stop_loss, x1=chart_df.index[-1], y1=stop_loss, line=dict(color="#22c55e", width=2, dash="dot"))
-            fig.add_annotation(x=chart_df.index[-1], y=stop_loss, text=f"Stop: {stop_loss:.2f} TL", showarrow=False, xshift=42, yshift=0, font=dict(color="#22c55e", size=11, family="Arial-Bold"))
+            # 🟢 Stop Loss Çizgisi ve Sabit Etiketi
+            fig.add_shape(type="line", x0=chart_df['Tarih_Str'].iloc[0], y0=stop_loss, x1=chart_df['Tarih_Str'].iloc[-1], y1=stop_loss, line=dict(color="#22c55e", width=2.5, dash="dot"))
+            fig.add_annotation(x=chart_df['Tarih_Str'].iloc[-1], y=stop_loss, text=f"  Stop: {stop_loss:.2f} TL", showarrow=False, xanchor="left", font=dict(color="#22c55e", size=12, family="Arial-Bold"))
             
-            fig.add_shape(type="line", x0=chart_df.index[0], y0=guncel_fiyat, x1=chart_df.index[-1], y1=guncel_fiyat, line=dict(color="#60a5fa", width=2))
-            fig.add_annotation(x=chart_df.index[-1], y=guncel_fiyat, text=f"Anlık: {guncel_fiyat:.2f} TL", showarrow=False, xshift=45, yshift=0, font=dict(color="#60a5fa", size=11, family="Arial-Bold"))
+            # 🔵 Anlık Fiyat Çizgisi ve Sabit Etiketi
+            fig.add_shape(type="line", x0=chart_df['Tarih_Str'].iloc[0], y0=guncel_fiyat, x1=chart_df['Tarih_Str'].iloc[-1], y1=guncel_fiyat, line=dict(color="#60a5fa", width=2.5))
+            fig.add_annotation(x=chart_df['Tarih_Str'].iloc[-1], y=guncel_fiyat, text=f"  Anlık: {guncel_fiyat:.2f} TL", showarrow=False, xanchor="left", font=dict(color="#60a5fa", size=12, family="Arial-Bold"))
 
+            # Grafik yerleşimi ve sağ boşluk (r=150) ayarı
             fig.update_layout(
                 xaxis_rangeslider_visible=False,
+                xaxis=dict(type='category', tickangle=-45), # Hafta sonu boşluklarını yok eden kritik ayar
                 hovermode="x unified",
                 template="plotly_dark",
                 paper_bgcolor='#121214',
                 plot_bgcolor='#121214',
-                margin=dict(l=20, r=80, t=20, b=20),
-                height=450,
+                margin=dict(l=20, r=150, t=20, b=20), # Sağ boşluğu 150 yaparak yazıları kurtardık
+                height=550,
                 showlegend=False
             )
             st.plotly_chart(fig, use_container_width=True)
