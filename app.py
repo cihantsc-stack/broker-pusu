@@ -5,54 +5,53 @@ import numpy as np
 import plotly.graph_objects as go
 from datetime import datetime
 
-# ==========================================
-# 🏛️ SAYFA VE OTOMATİK GÜNCELLEME
-# ==========================================
+# --- Sayfa Yapısı ---
 st.set_page_config(page_title="Broker Sinyal Radarı", layout="wide")
 
 if "favori_hisseler" not in st.session_state:
     st.session_state.favori_hisseler = ["ASELS", "THYAO"]
 
-try:
-    from streamlit_autorefresh import st_autorefresh
-    st_autorefresh(interval=600000, key="radar_final_refresh")
-except:
-    pass
+# --- Temel Strateji Algoritması ---
+def endeks_veri_cek_guvenli(ticker, fallback):
+    try:
+        t = yf.Ticker(ticker)
+        h = t.history(period="2d")
+        if not h.empty and len(h) >= 2:
+            return h['Close'].iloc[-1], ((h['Close'].iloc[-1] - h['Close'].iloc[-2]) / h['Close'].iloc[-2]) * 100
+        return fallback, 0.0
+    except:
+        return fallback, 0.0
 
-# ==========================================
-# 🎨 TÜM RADAR CSS TASARIMI
-# ==========================================
+# --- Arayüz ve Görünüm ---
 st.markdown("""
     <style>
     .stApp { background-color: #1e1e24 !important; color: #ffffff !important; }
     .instruction-card { background: #25252b; padding: 20px; border-radius: 12px; border: 1px solid #4b5563; text-align: center; }
     .main-signal { font-size: 30px !important; font-weight: 900 !important; text-align: center; padding: 25px; border-radius: 16px; margin-bottom: 20px; }
     .ytd-tag { background-color: #3b2314; color: #f59e0b !important; font-weight: bold; padding: 4px 10px; border-radius: 6px; font-size: 11px; }
-    .left-market-box { background: #25252b; padding: 12px; border-radius: 12px; border: 1px solid #3e3e4a; text-align: center; }
     </style>
 """, unsafe_allow_html=True)
 
 st.markdown("# 🦅 Broker Sinyal Radarı")
 
-# --- ENDEKS KISMI ---
+# Endeks Bölümü
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("BIST 100", "9,852.40", "+0.34%")
 c2.metric("BIST 30", "10,842.15", "+0.41%")
 c3.metric("VİOP ENDEKS", "10,972.30", "+0.46%")
-c4.markdown("<div class='instruction-card'>15 DK GECİKMELİ VERİ</div>", unsafe_allow_html=True)
+c4.markdown("<div style='background:#0f766e; padding:15px; border-radius:12px;'>15 DK GECİKMELİ VERİ</div>", unsafe_allow_html=True)
 
 st.markdown("---")
 
-# --- HİSSE MOTORU ---
+# Hisse Arama
 hisse_input = st.text_input("Hisse Kodu (Örn: ASELS):", "ASELS").upper().strip()
-
 if hisse_input:
-    # Sinyal değişkenleri (Gerçek hesaplamaların buraya gelmeli)
-    islem_durumu = "al"
+    # Sinyal Durumu (Örnek mantık)
+    islem_durumu = "al" # Kodun geri kalanından gelmeli
     stop_loss = 350.00
     direnc_ana = 450.00
     
-    # 🎯 3 NET RAKAM KARTI
+    # 🎯 NET İŞLEM KARTLARI
     st.markdown("### 🎯 Net İşlem Talimatları")
     col1, col2, col3 = st.columns(3)
     
