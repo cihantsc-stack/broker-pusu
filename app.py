@@ -7,11 +7,11 @@ import plotly.graph_objects as go
 # Sayfa Yapısı
 st.set_page_config(page_title="Broker Sinyal Radarı", layout="wide")
 
-# CSS ile Elemanları Koyu Temaya Tam Uydurma
+# CSS ile Arka Planı Gri Yapma ve Elemanları Optimize Etme
 st.markdown("""
     <style>
     .stApp {
-        background-color: #121214 !important;
+        background-color: #1e1e24 !important;
         color: #e3e3e6 !important;
     }
     label {
@@ -32,17 +32,32 @@ st.markdown("""
         letter-spacing: 1px;
     }
     .instruction-card {
-        background: #1a1a1e;
+        background: #25252b;
         padding: 20px;
         border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         text-align: center;
-        border: 1px solid #2a2a30;
+        border: 1px solid #32323a;
     }
     .price-style {
         font-size: 28px !important;
         font-weight: bold !important;
         margin-top: 10px;
+    }
+    .comment-card {
+        background: #25252b;
+        padding: 22px;
+        border-radius: 12px;
+        border-left: 5px solid #60a5fa;
+        margin-top: 20px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .guide-card {
+        background: #25252b;
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px dashed #4b5563;
+        margin-top: 15px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -70,8 +85,10 @@ if hisse_input:
         else:
             guncel_fiyat = df['Close'].iloc[-1]
             
-            # Arka Plandaki Hesaplamalar
-            ma20 = df['Close'].rolling(window=20).mean().iloc[-1]
+            # Arka Plandaki Teknik Hesaplamalar
+            ma20_seri = df['Close'].rolling(window=20).mean()
+            ma20 = ma20_seri.iloc[-1]
+            
             delta = df['Close'].diff()
             gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
             loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
@@ -89,7 +106,7 @@ if hisse_input:
             direnc_ana = aylik_en_yuksek
             stop_loss = destek_ana * 0.98
 
-            # Basit Puanlama
+            # Puanlama Kriterleri
             puan = 0
             if rsi_son < 45: puan += 1
             if guncel_fiyat > ma20: puan += 1
@@ -138,18 +155,15 @@ if hisse_input:
                 st.caption("Hisse bu fiyata geldiğinde kârı cebine koy.")
                 st.markdown('</div>', unsafe_allow_html=True)
 
-            # --- 3. ADIM: EKSİKSİZ, DOLGUN VE PROFESYONEL MUM GRAFİĞİ ---
+            # --- 3. ADIM: PROFESYONEL MUM GRAFİĞİ ---
             st.markdown("---")
             st.markdown("### 📈 Strateji Haritası (Son 1 Ay - Günlük Mumlar)")
             
             chart_df = df.tail(30).copy()
-            
-            # Plotly'nin tarih eksenini stringe çevirerek hafta sonu boşluklarını tamamen yok ediyoruz
             chart_df['Tarih_Str'] = chart_df.index.strftime('%d-%m-%Y')
             
             fig = go.Figure()
             
-            # Dolgun Mum Verisi
             fig.add_trace(go.Candlestick(
                 x=chart_df['Tarih_Str'],
                 open=chart_df['Open'],
@@ -163,35 +177,78 @@ if hisse_input:
                 decreasing_fillcolor='#ef4444'
             ))
             
-            # 🔴 Hedef / Direnç Çizgisi ve Sabit Etiketi
+            # Çizgiler ve Sabit Etiketler
             fig.add_shape(type="line", x0=chart_df['Tarih_Str'].iloc[0], y0=direnc_ana, x1=chart_df['Tarih_Str'].iloc[-1], y1=direnc_ana, line=dict(color="#ef4444", width=2.5, dash="dash"))
             fig.add_annotation(x=chart_df['Tarih_Str'].iloc[-1], y=direnc_ana, text=f"  Hedef: {direnc_ana:.2f} TL", showarrow=False, xanchor="left", font=dict(color="#ef4444", size=12, family="Arial-Bold"))
 
-            # 🟡 Pusu / Destek Çizgisi ve Sabit Etiketi
             fig.add_shape(type="line", x0=chart_df['Tarih_Str'].iloc[0], y0=destek_ana, x1=chart_df['Tarih_Str'].iloc[-1], y1=destek_ana, line=dict(color="#fbbf24", width=2.5, dash="dash"))
             fig.add_annotation(x=chart_df['Tarih_Str'].iloc[-1], y=destek_ana, text=f"  Pusu: {destek_ana:.2f} TL", showarrow=False, xanchor="left", font=dict(color="#fbbf24", size=12, family="Arial-Bold"))
 
-            # 🟢 Stop Loss Çizgisi ve Sabit Etiketi
             fig.add_shape(type="line", x0=chart_df['Tarih_Str'].iloc[0], y0=stop_loss, x1=chart_df['Tarih_Str'].iloc[-1], y1=stop_loss, line=dict(color="#22c55e", width=2.5, dash="dot"))
             fig.add_annotation(x=chart_df['Tarih_Str'].iloc[-1], y=stop_loss, text=f"  Stop: {stop_loss:.2f} TL", showarrow=False, xanchor="left", font=dict(color="#22c55e", size=12, family="Arial-Bold"))
             
-            # 🔵 Anlık Fiyat Çizgisi ve Sabit Etiketi
             fig.add_shape(type="line", x0=chart_df['Tarih_Str'].iloc[0], y0=guncel_fiyat, x1=chart_df['Tarih_Str'].iloc[-1], y1=guncel_fiyat, line=dict(color="#60a5fa", width=2.5))
             fig.add_annotation(x=chart_df['Tarih_Str'].iloc[-1], y=guncel_fiyat, text=f"  Anlık: {guncel_fiyat:.2f} TL", showarrow=False, xanchor="left", font=dict(color="#60a5fa", size=12, family="Arial-Bold"))
 
-            # Grafik yerleşimi ve sağ boşluk (r=150) ayarı
             fig.update_layout(
                 xaxis_rangeslider_visible=False,
-                xaxis=dict(type='category', tickangle=-45), # Hafta sonu boşluklarını yok eden kritik ayar
+                xaxis=dict(type='category', tickangle=-45),
                 hovermode="x unified",
                 template="plotly_dark",
-                paper_bgcolor='#121214',
-                plot_bgcolor='#121214',
-                margin=dict(l=20, r=150, t=20, b=20), # Sağ boşluğu 150 yaparak yazıları kurtardık
+                paper_bgcolor='#1e1e24',
+                plot_bgcolor='#1e1e24',
+                margin=dict(l=20, r=150, t=20, b=20),
                 height=550,
                 showlegend=False
             )
             st.plotly_chart(fig, use_container_width=True)
+
+            # --- 4. ADIM: EL YAZISI ŞEMAYA GÖRE GRAFİK OKUMA KILAVUZU ---
+            st.markdown('<div class="guide-card">', unsafe_allow_html=True)
+            st.markdown("### 📖 Grafik Nasıl Okunur? (Kılavuz)")
+            
+            st.markdown(f"1️⃣ **🔴 Hedef Çizgisi ({direnc_ana:.2f} TL):** Hisse yükseldiğinde kâr alıp çıkacağımız, satıcıların güçlü olduğu tepe bölgesidir.")
+            st.markdown(f"2️⃣ **🔵 Anlık Fiyat Çizgisi ({guncel_fiyat:.2f} TL):** Hissenin şu an pazarda işlem gördüğü anlık değeridir. Mumların bittiği yeri gösterir.")
+            st.markdown(f"3️⃣ **🟡 Pusu Çizgisi ({destek_ana:.2f} TL):** Hissenin geçmişte alıcı bulduğu, bizim de pusuya yatıp alım yapacağımız en güvenli dip bölgesidir.")
+            st.markdown(f"4️⃣ **🟢 Stop Çizgisi ({stop_loss:.2f} TL):** İşler ters giderse, daha büyük zarar etmemek için pozisyonu kapatıp kaçacağımız emniyet kemeridir.")
+            
+            # Dinamik Kılavuz Özeti
+            uzaklik_notu = ""
+            if guncel_fiyat > destek_ana:
+                fark_yuzde = ((guncel_fiyat - destek_ana) / destek_ana) * 100
+                uzaklik_notu = f"Mavi anlık fiyat çizgisi, sarı pusu çizgisinin **%{fark_yuzde:.1f}** üzerinde duruyor."
+            else:
+                uzaklik_notu = "Mavi anlık fiyat çizgisi pusu seviyesinin altına sarkmış durumda."
+                
+            st.info(f"💡 **Mevcut Konum Özeti:** {uzaklik_notu} Çizgiler birbirine yaklaştıkça alım fırsatı doğar, kırmızı tepeye yaklaştıkça risk artar.")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            # --- 5. ADIM: YAPAY ZEKA TEKNİK ANALİZ YORUMLARI ---
+            st.markdown('<div class="comment-card">', unsafe_allow_html=True)
+            st.markdown("### 🤖 Radar Yapay Zeka Analiz Notları")
+            
+            yorumlar = []
+            if rsi_son > 65:
+                yorumlar.append(f"⚠️ **RSI Değeri ({rsi_son:.1f}):** Aşırı alım bölgesine çok yakın. Hisse çok hızlı yükselmiş, buralardan girmek riskli.")
+            elif rsi_son < 40:
+                yorumlar.append(f"📊 **RSI Değeri ({rsi_son:.1f}):** Güvenli / Ucuzluk bölgesinde. Satıcıların iştahı azalmış, dipten dönüş emareleri.")
+            else:
+                yorumlar.append(f"📊 **RSI Değeri ({rsi_son:.1f}):** Dengeli bölgede, aşırılık yok.")
+
+            if guncel_fiyat > ma20:
+                yorumlar.append(f"📈 **Hareketli Ortalama:** Fiyat 20 günlük ortalamanın ({ma20:.2f} TL) üzerinde. Trend yönü yukarı yönlü pozitif.")
+            else:
+                yorumlar.append(f"📉 **Hareketli Ortalama:** Fiyat 20 günlük ortalamanın ({ma20:.2f} TL) altında. Kısa vadeli baskı devam ediyor.")
+
+            if zirveye_uzaklik > 15:
+                yorumlar.append(f"🎯 **Zirve İskontosu:** Hisse son 1 ayın en yüksek seviyesine göre %{zirveye_uzaklik:.1f} aşağıda. Yeterince iskonto sağlamış durumda.")
+            else:
+                yorumlar.append(f"🚨 **Zirve İskontosu:** Hisse zirvesine sadece %{zirveye_uzaklik:.1f} uzaklıkta. Düzeltme riskini artırır.")
+
+            for yorum in yorumlar:
+                st.write(yorum)
+                
+            st.markdown('</div>', unsafe_allow_html=True)
 
     except Exception as e:
         st.error("Veriler yüklenirken bir hata oluştu, lütfen kodu doğru yazdığınızdan emin olun.")
