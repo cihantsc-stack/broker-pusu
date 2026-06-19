@@ -8,6 +8,14 @@ from datetime import datetime
 # Sayfa Yapısı
 st.set_page_config(page_title="Broker Sinyal Radarı", layout="wide")
 
+# Otomatik Yenileme: Sayfayı her 15 saniyede bir arka planda kendi kendine yeniler (Saat ve Fiyatlar Canlı Aksın)
+# Not: Eğer bu modül yüklü değilse hata vermemesi için güvenli bir try-except yapısı kurduk.
+try:
+    from streamlit_autorefresh import st_autorefresh
+    st_autorefresh(interval=15000, key="datarefresh")
+except:
+    pass
+
 # CSS Düzenlemeleri
 st.markdown("""
     <style>
@@ -91,7 +99,7 @@ st.markdown("""
         border-bottom: none;
     }
     
-    /* Üst Orta Saat ve Durum Kutusu Tasarımı */
+    /* Üst Orta Saat ve Durum Kutusu */
     .time-status-box {
         background: #25252b;
         padding: 12px;
@@ -132,7 +140,6 @@ st.markdown("""
 st.markdown("# 🦅 Broker Sinyal Radarı")
 st.write("Borsa bilgisine ihtiyacınız yok. Yapay zeka sizin yerinize hesaplar ve net işlem talimatı verir.")
 
-# Üst yapıyı tam istediğin gibi 3 sütuna bölüyoruz
 top_col1, top_col2, top_col3 = st.columns([2, 1.5, 2.5])
 
 # 📍 1. SOL SÜTUN (BIST Endeksleri)
@@ -181,15 +188,14 @@ with top_col1:
         except:
             st.markdown('<div class="left-market-box">🚀 BIST 30<br><span style="font-size:20px; font-weight:bold; color:#4ade80;">16,120.50</span></div>', unsafe_allow_html=True)
 
-# 📍 2. ORTA SÜTUN (Tam İstediğin Anlık Saat ve Piyasa Durumu)
+# 📍 2. ORTA SÜTUN (Anlık Saat ve Dinamik Piyasa Durumu)
 with top_col2:
-    # Bilgisayarın anlık saati
-    su an = datetime.now()
-    saat_str = su an.strftime("%H:%M:%S")
+    su_an = datetime.now()
+    saat_str = su_an.strftime("%H:%M:%S")
     
-    # Borsa İstanbul Çalışma Saatleri Kontrolü (Hafta içi 10:00 - 18:15 arası açık)
-    hafta_gunu = su an.weekday()  # 0=Pazartesi, 5=Cumartesi, 6=Pazar
-    saat_dakika = su an.hour * 100 + su an.minute
+    # Çalışma saatleri kontrolü (Hafta içi 10:00 - 18:15)
+    hafta_gunu = su_an.weekday()
+    saat_dakika = su_an.hour * 100 + su_an.minute
     
     if hafta_gunu < 5 and (1000 <= saat_dakika <= 1815):
         piyasa_durumu = "🟢 HİSSE SENEDİ PİYASASI AÇIK"
