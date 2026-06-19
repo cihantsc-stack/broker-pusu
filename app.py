@@ -116,7 +116,6 @@ if hisse_input:
         ticker = yf.Ticker(hisse_ticker)
         df = ticker.history(period="1y")
         
-        # Güvenli info çekme (Hata vermemesi için boş sözlük koruması)
         try:
             info = ticker.info
             if not info: info = {}
@@ -157,40 +156,4 @@ if hisse_input:
 
             # --- 1. ADIM: DEV SİNYAL KUTUSU ---
             if puan >= 2 and guncel_fiyat <= destek_ana * 1.05:
-                st.markdown('<div class="main-signal" style="background-color: #1e3a24; color: #a2e8b2; border: 3px solid #28a745;">🟢 GÖNÜL RAHATLIĞIYLA ALINABİLİR (GÜVENLİ BÖLGE)</div>', unsafe_allow_html=True)
-                islem_durumu = "al"
-            elif guncel_fiyat >= direnc_ana * 0.96 or rsi_son > 65:
-                st.markdown('<div class="main-signal" style="background-color: #44191c; color: #f8b4b7; border: 3px solid #dc3545;">🔴 SAKIN ALMA! (TEHLİKELİ / ÇOK PAHALI)</div>', unsafe_allow_html=True)
-                islem_durumu = "alma"
-            else:
-                st.markdown('<div class="main-signal" style="background-color: #3e3113; color: #fada8a; border: 3px solid #ffc107;">🟡 ACELE ETMEYİN (BEKLE GÖR / KORU)</div>', unsafe_allow_html=True)
-                islem_durumu = "bekle"
-
-            # --- 2. ADIM: SADECE 3 NET RAKAM ---
-            st.markdown("### 🎯 Net İşlem Talimatları")
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.markdown('<div class="instruction-card">', unsafe_allow_html=True)
-                st.write("<p style='color:#b3b3b3; font-weight:bold; margin:0;'>📥 ALINACAK FİYAT</p>", unsafe_allow_html=True)
-                if islem_durumu == "al":
-                    st.markdown(f'<div class="price-style" style="color: #4ade80;">{guncel_fiyat:.2f} TL</div>', unsafe_allow_html=True)
-                    st.caption("Fiyat alım için çok uygun seviyede.")
-                elif islem_durumu == "bekle":
-                    st.markdown(f'<div class="price-style" style="color: #fbbf24;">{destek_ana:.2f} TL</div>', unsafe_allow_html=True)
-                    st.caption("Şu an alma, pusu seviyesine inmesini bekle.")
-                else:
-                    st.markdown('<div class="price-style" style="color: #f87171;">ALINMAZ!</div>', unsafe_allow_html=True)
-                    st.caption("Hisse çok şişmiş, risk bölgesidir.")
-                st.markdown('</div>', unsafe_allow_html=True)
-                
-            with col2:
-                st.markdown('<div class="instruction-card">', unsafe_allow_html=True)
-                st.write("<p style='color:#b3b3b3; font-weight:bold; margin:0;'>🛡️ KOL KESME / TEHLİKE SINIRI (STOP)</p>", unsafe_allow_html=True)
-                st.markdown(f'<div class="price-style" style="color: #f87171;">{stop_loss:.2f} TL</div>', unsafe_allow_html=True)
-                st.caption("Fiyat buranın altına düşerse sat çık.")
-                st.markdown('</div>', unsafe_allow_html=True)
-                
-            with col3:
-                st.markdown('<div class="instruction-card">', unsafe_allow_html=True)
-                st.write("
+                st.markdown('<div class="main-signal" style="background-color: #1e3a24; color: #a2e8b2; border: 3px solid #28a745;">🟢 GÖNÜL RAHATLIĞIYLA ALINAB
