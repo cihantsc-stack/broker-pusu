@@ -66,6 +66,14 @@ st.markdown("""
         border: 1px solid #32323a;
         text-align: center;
     }
+    .market-card {
+        background: #25252b;
+        padding: 12px;
+        border-radius: 10px;
+        border: 1px solid #3b82f6;
+        text-align: center;
+        margin-bottom: 20px;
+    }
     
     [data-testid="stMetricLabel"] {
         color: #e5e7eb !important;
@@ -99,6 +107,44 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown("# 🦅 Broker Sinyal Radarı")
+
+# --- 🔥 EN ÜST KATMAN: CANLI ENDEKS VE VIOP PANELI 🔥 ---
+try:
+    # BIST100 ve Güncel VIOP Vadeli Kontrat Verisi Çekme
+    idx = yf.Ticker("XU100.IS")
+    vop = yf.Ticker("F_XU0300626.IS") # Haziran 2026 Vadeli Kontrat
+    
+    idx_df = idx.history(period="2d")
+    vop_df = vop.history(period="2d")
+    
+    # Veri gelmeme durumuna karşı BIST30 yedekleme denemesi
+    if vop_df.empty:
+        vop = yf.Ticker("XU030.IS")
+        vop_df = vop.history(period="2d")
+        vop_name = "BIST 30 Endeksi"
+    else:
+        vop_name = "VIOP BIST 30 Yakın Vade"
+
+    m_col1, m_col2 = st.columns(2)
+    
+    # BIST 100 Kartı
+    if not idx_df.empty:
+        idx_guncel = idx_df['Close'].iloc[-1]
+        idx_degisim = ((idx_guncel - idx_df['Close'].iloc[-2]) / idx_df['Close'].iloc[-2]) * 100
+        idx_renk = "#4ade80" if idx_degisim >= 0 else "#f87171"
+        with m_col1:
+            st.markdown(f'<div class="market-card" style="border-color: {idx_renk};">🏛️ <b style="color:#e5e7eb;">BIST 100 Endeksi</b><br><span style="font-size:24px; font-weight:bold; color:{idx_renk};">{idx_guncel:.2f}</span> <span style="font-size:16px; color:{idx_renk};">({idx_degisim:+.2f}%)</span></div>', unsafe_allow_html=True)
+            
+    # VIOP / BIST 30 Kartı
+    if not vop_df.empty:
+        vop_guncel = vop_df['Close'].iloc[-1]
+        vop_degisim = ((vop_guncel - vop_df['Close'].iloc[-2]) / vop_df['Close'].iloc[-2]) * 100
+        vop_renk = "#4ade80" if vop_degisim >= 0 else "#f87171"
+        with m_col2:
+            st.markdown(f'<div class="market-card" style="border-color: {vop_renk};">🚀 <b style="color:#e5e7eb;">{vop_name}</b><br><span style="font-size:24px; font-weight:bold; color:{vop_renk};">{vop_guncel:.2f}</span> <span style="font-size:16px; color:{vop_renk};">({vop_degisim:+.2f}%)</span></div>', unsafe_allow_html=True)
+except:
+    pass # Piyasalar kapalıyken veya veri gecikmesinde üst paneli gizle, çökme yaptırma
+
 st.write("Borsa bilgisine ihtiyacınız yok. Yapay zeka sizin yerinize hesaplar ve net işlem talimatı verir.")
 st.markdown("---")
 
@@ -128,11 +174,9 @@ if hisse_input:
             guncel_fiyat = df['Close'].iloc[-1]
             
             # --- TEKNİK HESAPLAMALAR ---
-            # 1. Moving Average
             ma20_seri = df['Close'].rolling(window=20).mean()
             ma20 = ma20_seri.iloc[-1]
             
-            # 2. RSI Hesaplama
             delta = df['Close'].diff()
             gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
             loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
@@ -140,7 +184,6 @@ if hisse_input:
             rsi = 100 - (100 / (1 + rs))
             rsi_son = rsi.iloc[-1]
             
-            # 3. MACD Hesaplama (12, 26, 9)
             exp1 = df['Close'].ewm(span=12, adjust=False).mean()
             exp2 = df['Close'].ewm(span=26, adjust=False).mean()
             macd_line = exp1 - exp2
@@ -148,14 +191,11 @@ if hisse_input:
             macd_son = macd_line.iloc[-1]
             signal_son = signal_line.iloc[-1]
             
-            # 4. Stochastic (%K ve %D) Hesaplama
             low_14 = df['Low'].rolling(window=14).min()
             high_14 = df['High'].rolling(window=14).max()
             stoch_k = 100 * ((df['Close'] - low_14) / (high_14 - low_14 + 1e-9))
-            stoch_d = stoch_k.rolling(window=3).mean()
             stoch_k_son = stoch_k.iloc[-1]
             
-            # 5. CCI Hesaplama
             tp = (df['High'] + df['Low'] + df['Close']) / 3
             cci = (tp - tp.rolling(window=20).mean()) / (0.015 * tp.rolling(window=20).std() + 1e-9)
             cci_son = cci.iloc[-1]
@@ -241,7 +281,6 @@ if hisse_input:
                 decreasing_fillcolor='#ef4444'
             ))
             
-            # Çizgiler ve Etiketler
             fig.add_shape(type="line", x0=chart_df['Tarih_Str'].iloc[0], y0=direnc_ana, x1=chart_df['Tarih_Str'].iloc[-1], y1=direnc_ana, line=dict(color="#ef4444", width=2.5, dash="dash"))
             fig.add_annotation(x=chart_df['Tarih_Str'].iloc[-1], y=direnc_ana, text=f"  Hedef: {direnc_ana:.2f} TL", showarrow=False, xanchor="left", font=dict(color="#ef4444", size=12, family="Arial-Bold"))
 
@@ -341,18 +380,12 @@ if hisse_input:
                 with t_col2:
                     st.markdown("<h4 style='color:#60a5fa;'>🔮 Popüler Osilatör Sinyal Durumları</h4>", unsafe_allow_html=True)
                     
-                    # RSI Sinyal Mantığı
                     rsi_durum = "🟡 NÖTR"
                     if rsi_son < 40: rsi_durum = "🟢 AL (Aşırı Satım)"
                     elif rsi_son > 65: rsi_durum = "🔴 SAT (Aşırı Alım)"
                     
-                    # MACD Sinyal Mantığı (Gerçek MACD çizgisine göre)
                     macd_durum = "🟢 AL (Pozitif)" if macd_son > signal_son else "🔴 SAT (Negatif)"
-                    
-                    # Stochastic Sinyal Mantığı
                     stoch_durum = "🟢 AL (Ucuz)" if stoch_k_son < 30 else ("🔴 SAT (Şişmiş)" if stoch_k_son > 75 else "🟡 NÖTR")
-                    
-                    # CCI Sinyal Mantığı
                     cci_durum = "🟢 AL" if cci_son < -100 else ("🔴 SAT" if cci_son > 100 else "🟡 NÖTR")
                     
                     osc_satirlari = [
