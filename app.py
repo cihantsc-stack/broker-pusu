@@ -15,12 +15,11 @@ if hisse:
         fiyat = df['Close'].iloc[-1]
         st.metric("Son Fiyat", f"{fiyat:.2f} TL")
         
-        # AKD Tablosu
-        st.subheader("Aracı Kurum Dağılımı")
+        # Basit AKD Tablosu
         akd = pd.DataFrame({
             "Kurum": ["BofA", "İş Yatırım", "Garanti"],
             "Pay": ["%38", "%24", "%16"]
         })
         st.table(akd)
     else:
-        st.error("Veri alınamadı, kodu kontrol edin.")
+        st.error("Veri alınamadı.")
