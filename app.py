@@ -2,23 +2,24 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 
-st.title("🦅 Broker Pusu")
+st.set_page_config(page_title="Broker Pusu", layout="wide")
+st.title("🦅 Broker Sinyal Radarı")
 
-hisse_kodu = st.text_input("Hisse Kodu (Örn: ASELS):", "ASELS")
+hisse = st.text_input("Hisse Kodu (Örn: ASELS):", "ASELS").upper().strip()
 
-if hisse_kodu:
-    ticker = yf.Ticker(f"{hisse_kodu}.IS")
-    df = ticker.history(period="1d")
+if hisse:
+    t = yf.Ticker(f"{hisse}.IS")
+    df = t.history(period="1d")
     
     if not df.empty:
         fiyat = df['Close'].iloc[-1]
         st.metric("Son Fiyat", f"{fiyat:.2f} TL")
         
-        # Basit AKD
+        # AKD Tablosu
         st.subheader("Aracı Kurum Dağılımı")
         akd = pd.DataFrame({
             "Kurum": ["BofA", "İş Yatırım", "Garanti"],
-            "Hacim": ["%38", "%24", "%16"]
+            "Pay": ["%38", "%24", "%16"]
         })
         st.table(akd)
     else:
